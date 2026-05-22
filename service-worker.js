@@ -1,4 +1,4 @@
-const CACHE_NAME='hospital-kpi-v3';
+const CACHE_NAME='hospital-kpi-v5';
 const BASE_URL=self.location.pathname.replace(/service-worker\.js$/,'');
 const STATIC_ASSETS=[
   BASE_URL,BASE_URL+'index.html',BASE_URL+'app.js',BASE_URL+'manifest.json',
