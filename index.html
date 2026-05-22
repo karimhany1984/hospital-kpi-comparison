@@ -34,7 +34,7 @@
 
     .app-header h1 {
       font-size: 1.1rem;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       text-align: center;
     }
 
@@ -46,20 +46,34 @@
       align-items: center;
     }
 
-    .toolbar input {
+    .toolbar select {
       flex: 1;
       min-width: 200px;
-      padding: 8px 12px;
+      padding: 10px 14px;
       border: none;
-      border-radius: 20px;
+      border-radius: 8px;
       font-size: 0.9rem;
+      font-family: inherit;
       outline: none;
+      background: white;
+      color: #333;
+      cursor: pointer;
+    }
+
+    .toolbar select option {
+      padding: 8px;
+    }
+
+    .toolbar select optgroup {
+      font-weight: bold;
+      color: #0066cc;
+      background: #f0f7ff;
     }
 
     .btn {
-      padding: 8px 16px;
+      padding: 10px 18px;
       border: none;
-      border-radius: 20px;
+      border-radius: 8px;
       font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
@@ -67,18 +81,13 @@
       white-space: nowrap;
     }
 
-    .btn-primary {
-      background: #fff;
-      color: #0066cc;
+    .btn-success {
+      background: #28a745;
+      color: white;
     }
 
     .btn-danger {
       background: #dc3545;
-      color: white;
-    }
-
-    .btn-success {
-      background: #28a745;
       color: white;
     }
 
@@ -128,6 +137,7 @@
       border-radius: 8px;
       margin-bottom: 10px;
       overflow: hidden;
+      transition: box-shadow 0.3s;
     }
 
     .indicator-header {
@@ -317,21 +327,77 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
 
-    .offline-badge.hidden {
+    /* Install Toast */
+    .install-toast {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1a1a2e;
+      color: white;
+      padding: 14px 16px;
       display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 2000;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .install-toast .install-text {
+      flex: 1;
+      font-size: 0.9rem;
+    }
+
+    .install-toast .install-text strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 2px;
+    }
+
+    .install-toast .install-text small {
+      opacity: 0.8;
+    }
+
+    .install-toast .install-buttons {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .install-toast .btn-install {
+      background: #0066cc;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .install-toast .btn-dismiss {
+      background: transparent;
+      color: #aaa;
+      border: 1px solid #555;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
     }
 
     @media (max-width: 600px) {
-      .hospitals-grid {
-        grid-template-columns: 1fr;
-      }
-      .toolbar input {
-        min-width: 100%;
-        order: -1;
-      }
-      .app-header h1 {
-        font-size: 1rem;
-      }
+      .hospitals-grid { grid-template-columns: 1fr; }
+      .toolbar select { min-width: 100%; order: -1; }
+      .app-header h1 { font-size: 1rem; }
+      .install-toast { flex-direction: column; text-align: center; }
+      .install-toast .install-buttons { width: 100%; justify-content: center; }
     }
   </style>
 </head>
@@ -339,7 +405,9 @@
   <header class="app-header">
     <h1>🏥 نموذج إدخال بيانات مقارنة مؤشرات المستشفيات</h1>
     <div class="toolbar">
-      <input type="text" id="search" placeholder="🔍 البحث في المؤشرات..." oninput="searchIndicators()">
+      <select id="nav-dropdown" onchange="navigateTo(this.value);this.value='';">
+        <option value="">🔍 الانتقال السريع إلى المؤشر...</option>
+      </select>
       <button class="btn btn-success" onclick="exportExcel()">📥 تصدير Excel</button>
       <button class="btn btn-danger" onclick="clearAll()">🗑️ مسح</button>
     </div>
@@ -352,9 +420,20 @@
   <div id="toast"></div>
   <div id="offline-badge" class="offline-badge">✓ يعمل بدون إنترنت</div>
 
+  <!-- Install Prompt Toast -->
+  <div id="install-toast" class="install-toast">
+    <div class="install-text">
+      <strong>📲 ثبّت التطبيق على جهازك</strong>
+      <small>للوصول السريع والعمل بدون إنترنت</small>
+    </div>
+    <div class="install-buttons">
+      <button id="install-btn" class="btn-install">تثبيت</button>
+      <button id="dismiss-install" class="btn-dismiss">لاحقاً</button>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   <script>
-    // Show offline status
     window.addEventListener('load', () => {
       const badge = document.getElementById('offline-badge');
       if (navigator.onLine) {
@@ -365,13 +444,10 @@
         badge.style.background = '#28a745';
       }
     });
-
     window.addEventListener('online', () => {
       const badge = document.getElementById('offline-badge');
-      badge.textContent = '✓ متصل';
-      badge.style.background = '#0066cc';
+      badge.textContent = '✓ متصل'; badge.style.background = '#0066cc';
     });
-
     window.addEventListener('offline', () => {
       const badge = document.getElementById('offline-badge');
       badge.textContent = '✓ غير متصل (يعمل offline)';
