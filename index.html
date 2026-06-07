@@ -1,0 +1,2298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a4f6e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PHC تقارير">
+<meta name="description" content="تطبيق جمع بيانات الرعاية الصحية الأولية">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>نظام تقارير الرعاية الصحية الأولية</title>
+
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Google Fonts - Arabic support -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --primary: #0a4f6e;
+  --primary-light: #1a7fa8;
+  --primary-dark: #063347;
+  --accent: #00c9a7;
+  --accent2: #f59e0b;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --bg: #f0f5f8;
+  --surface: #ffffff;
+  --surface2: #e8f1f7;
+  --text: #0f2937;
+  --text-muted: #5a7a8a;
+  --border: #c8dce8;
+  --shadow: 0 2px 12px rgba(10,79,110,0.10);
+  --shadow-lg: 0 8px 32px rgba(10,79,110,0.18);
+  --radius: 14px;
+  --radius-sm: 8px;
+  --font: 'Cairo', 'Tajawal', sans-serif;
+  --nav-h: 64px;
+  --bottom-h: 70px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  direction: rtl;
+  overflow: hidden;
+}
+
+/* ===== LAYOUT ===== */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ===== TOP NAV ===== */
+#topnav {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 60%, var(--primary-light) 100%);
+  color: white;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  box-shadow: 0 2px 16px rgba(10,79,110,0.3);
+  position: relative;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+#topnav .logo {
+  width: 38px; height: 38px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  backdrop-filter: blur(4px);
+  flex-shrink: 0;
+}
+
+#topnav .titles { flex: 1; min-width: 0; }
+#topnav h1 { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#topnav .subtitle { font-size: 11px; opacity: 0.75; margin-top: 1px; }
+
+#topnav .actions { display: flex; gap: 8px; align-items: center; }
+
+.icon-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: background 0.2s, transform 0.1s;
+  backdrop-filter: blur(4px);
+  flex-shrink: 0;
+}
+.icon-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.25); }
+
+/* ===== CONTENT AREA ===== */
+#content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--bottom-h) + 12px);
+}
+
+/* ===== BOTTOM NAV ===== */
+#bottomnav {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  height: var(--bottom-h);
+  display: flex;
+  align-items: stretch;
+  box-shadow: 0 -4px 20px rgba(10,79,110,0.10);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  gap: 3px;
+  padding: 6px 2px;
+  transition: background 0.15s;
+  position: relative;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-tab:active { background: var(--surface2); }
+.nav-tab.active { color: var(--primary); }
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 0 0 4px 4px;
+}
+.nav-tab .tab-icon { font-size: 22px; transition: transform 0.2s; }
+.nav-tab.active .tab-icon { transform: scale(1.1); }
+.nav-tab .tab-label { font-size: 10px; font-weight: 600; text-align: center; line-height: 1.1; }
+
+/* ===== PAGE ===== */
+.page { display: none; padding: 16px; }
+.page.active { display: block; }
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(200,220,232,0.5);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--surface2);
+}
+.card-header .card-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.card-header h2 { font-size: 15px; font-weight: 700; color: var(--primary); }
+.card-header .card-badge {
+  margin-right: auto;
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+/* ===== FORM ELEMENTS ===== */
+.field-group { margin-bottom: 14px; }
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+.field-label .required { color: var(--danger); margin-right: 2px; }
+
+.field-input, .field-select, .field-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  direction: rtl;
+}
+.field-input:focus, .field-select:focus, .field-textarea:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(26,127,168,0.12);
+}
+.field-textarea { resize: vertical; min-height: 70px; }
+.field-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a7a8a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: left 12px center; padding-left: 32px; }
+
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+/* ===== RADIO/CHECKBOX ===== */
+.radio-group, .check-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.radio-opt, .check-opt {
+  flex: 1;
+  min-width: 70px;
+}
+.radio-opt input, .check-opt input { display: none; }
+.radio-opt label, .check-opt label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  gap: 5px;
+}
+.radio-opt input:checked + label,
+.check-opt input:checked + label {
+  border-color: var(--primary);
+  background: rgba(10,79,110,0.07);
+  color: var(--primary);
+}
+.radio-opt input:checked + label.yes { border-color: var(--success); background: rgba(34,197,94,0.08); color: var(--success); }
+.radio-opt input:checked + label.no { border-color: var(--danger); background: rgba(239,68,68,0.08); color: var(--danger); }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-light); }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #16a34a; }
+.btn-accent { background: var(--accent); color: white; }
+.btn-accent:hover { background: #00a98d; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-outline { background: transparent; border: 1.5px solid var(--primary); color: var(--primary); }
+.btn-ghost { background: var(--surface2); color: var(--text); }
+.btn-sm { padding: 7px 14px; font-size: 12px; }
+.btn-full { width: 100%; }
+.btn-icon { width: 36px; height: 36px; padding: 0; border-radius: var(--radius-sm); }
+
+/* ===== TABLE ===== */
+.data-table-wrap { overflow-x: auto; margin: -4px -4px 0; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th {
+  background: var(--surface2);
+  color: var(--primary);
+  font-weight: 700;
+  padding: 8px 10px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--border);
+}
+.data-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(10,79,110,0.03); }
+.data-table .actions-cell { white-space: nowrap; display: flex; gap: 5px; }
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-muted);
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 10px; }
+.empty-state p { font-size: 14px; }
+
+/* ===== STATS ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stat-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  border-right: 4px solid var(--primary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-card.green { border-color: var(--success); }
+.stat-card.yellow { border-color: var(--accent2); }
+.stat-card.red { border-color: var(--danger); }
+.stat-card.teal { border-color: var(--accent); }
+.stat-value { font-size: 26px; font-weight: 900; color: var(--primary); }
+.stat-card.green .stat-value { color: var(--success); }
+.stat-card.yellow .stat-value { color: var(--accent2); }
+.stat-card.red .stat-value { color: var(--danger); }
+.stat-card.teal .stat-value { color: var(--accent); }
+.stat-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+/* ===== MONTHS SELECTOR ===== */
+.month-pills {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.month-pills::-webkit-scrollbar { display: none; }
+.month-pill {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.month-pill.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* ===== TOAST ===== */
+#toast {
+  position: fixed;
+  bottom: calc(var(--bottom-h) + 16px);
+  right: 50%;
+  transform: translateX(50%) translateY(100px);
+  background: var(--primary-dark);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 9999;
+  transition: transform 0.3s ease;
+  max-width: 90vw;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+#toast.show { transform: translateX(50%) translateY(0); }
+#toast.success { background: var(--success); }
+#toast.error { background: var(--danger); }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+  backdrop-filter: blur(3px);
+}
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px 16px 32px;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-handle {
+  width: 36px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.modal-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== HEADER BANNER (Home) ===== */
+.home-banner {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary), var(--primary-light));
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  color: white;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.home-banner::before {
+  content: '🏥';
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  font-size: 80px;
+  opacity: 0.08;
+}
+.home-banner h2 { font-size: 18px; font-weight: 900; margin-bottom: 4px; }
+.home-banner p { font-size: 13px; opacity: 0.85; }
+.home-banner .facility-name {
+  font-size: 14px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.15);
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-top: 8px;
+}
+
+/* ===== MENU GRID ===== */
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.menu-item {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all 0.2s;
+  border: 1.5px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.menu-item:active { transform: scale(0.97); }
+.menu-item.active-item { border-color: var(--primary); background: rgba(10,79,110,0.04); }
+.menu-item .menu-icon {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.menu-item h3 { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.menu-item .count-badge {
+  background: var(--primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* ===== INDICATORS ===== */
+.indicator-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.indicator-row:last-child { border-bottom: none; }
+.indicator-code {
+  background: var(--surface2);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.indicator-name { flex: 1; font-size: 13px; font-weight: 600; }
+.indicator-values { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.indicator-val {
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
+  min-width: 50px;
+  text-align: center;
+}
+.indicator-val.na { color: var(--text-muted); }
+
+/* ===== PROGRESS ===== */
+.progress-bar {
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-light), var(--accent));
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* ===== TRAINING MONTH GRID ===== */
+.month-grid-input {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+.month-cell {
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+}
+.month-cell .m-name { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+.month-cell input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 2px 0;
+}
+.month-cell input:focus { outline: none; }
+
+/* ===== EXPORT SECTION ===== */
+.export-card {
+  background: linear-gradient(135deg, rgba(0,201,167,0.08), rgba(10,79,110,0.08));
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.export-card h3 { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
+
+/* ===== SECTION DIVIDER ===== */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.section-divider::before, .section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ===== SCROLLBAR ===== */
+#content::-webkit-scrollbar { width: 4px; }
+#content::-webkit-scrollbar-track { background: transparent; }
+#content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ===== LOADING ===== */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--primary-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  color: white;
+  gap: 16px;
+}
+.loading-overlay .loader-logo { font-size: 60px; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.95)} }
+.loading-overlay h2 { font-size: 20px; font-weight: 800; }
+.loading-overlay p { font-size: 13px; opacity: 0.7; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== CLINIC FREQ TABLE ===== */
+.clinic-table-wrap { overflow-x: auto; }
+.clinic-table { border-collapse: collapse; width: 100%; min-width: 500px; font-size: 12px; }
+.clinic-table th { background: var(--surface2); color: var(--primary); font-weight: 700; padding: 6px 8px; text-align: center; white-space: nowrap; }
+.clinic-table th:first-child { text-align: right; }
+.clinic-table td { padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: center; }
+.clinic-table td:first-child { text-align: right; font-weight: 600; }
+.clinic-table td input {
+  width: 56px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  text-align: center;
+  font-family: var(--font);
+  font-size: 12px;
+}
+.clinic-table td input:focus { outline: none; border-color: var(--primary-light); }
+
+/* ===== SEGMENT ===== */
+.segment {
+  display: flex;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin-bottom: 14px;
+}
+.seg-btn {
+  flex: 1;
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-muted);
+  border: none;
+  background: none;
+  font-family: var(--font);
+}
+.seg-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+/* ===== BADGE ===== */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.badge-green { background: rgba(34,197,94,0.12); color: var(--success); }
+.badge-red { background: rgba(239,68,68,0.1); color: var(--danger); }
+.badge-blue { background: rgba(10,79,110,0.1); color: var(--primary); }
+.badge-yellow { background: rgba(245,158,11,0.12); color: var(--accent2); }
+
+/* ===== SETUP SCREEN ===== */
+.setup-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 500;
+  overflow-y: auto;
+  padding: 24px 16px;
+  display: none;
+}
+.setup-screen.show { display: block; }
+.setup-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.setup-header .setup-icon { font-size: 56px; margin-bottom: 10px; }
+.setup-header h2 { font-size: 22px; font-weight: 900; color: var(--primary); }
+.setup-header p { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 350px) {
+  .row-2 { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .menu-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div class="loading-overlay" id="loadingScreen">
+  <div class="loader-logo">🏥</div>
+  <h2>نظام تقارير الرعاية الصحية</h2>
+  <p>جاري التحميل...</p>
+  <div class="spinner"></div>
+</div>
+
+<!-- Setup Screen -->
+<div class="setup-screen" id="setupScreen">
+  <div class="setup-header">
+    <div class="setup-icon">🏥</div>
+    <h2>إعداد المنشأة</h2>
+    <p>أدخل بيانات المنشأة الصحية للبدء</p>
+  </div>
+  <div class="card">
+    <div class="field-group">
+      <label class="field-label">اسم المنشأة <span class="required">*</span></label>
+      <input id="setup_name" class="field-input" type="text" placeholder="مثال: وحدة صحية غرب">
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">كود المنشأة</label>
+        <input id="setup_code" class="field-input" type="text" placeholder="ASU-BDR-001">
+      </div>
+      <div class="field-group">
+        <label class="field-label">نوع المنشأة</label>
+        <select id="setup_type" class="field-select">
+          <option value="">اختر...</option>
+          <option>وحدة صحية</option>
+          <option>مركز صحي</option>
+          <option>مستوصف</option>
+          <option>عيادة PHC</option>
+        </select>
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">الإدارة الصحية</label>
+        <input id="setup_admin" class="field-input" type="text" placeholder="">
+      </div>
+      <div class="field-group">
+        <label class="field-label">المديرية</label>
+        <input id="setup_dir" class="field-input" type="text" placeholder="">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">العنوان</label>
+      <input id="setup_addr" class="field-input" type="text" placeholder="">
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">إجمالي المواطنين</label>
+        <input id="setup_pop" class="field-input" type="number" placeholder="0">
+      </div>
+      <div class="field-group">
+        <label class="field-label">عدد العيادات</label>
+        <input id="setup_clinics" class="field-input" type="number" placeholder="0">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">إجمالي العاملين</label>
+        <input id="setup_staff" class="field-input" type="number" placeholder="0">
+      </div>
+      <div class="field-group">
+        <label class="field-label">الأطباء وأطباء الأسنان</label>
+        <input id="setup_docs" class="field-input" type="number" placeholder="0">
+      </div>
+    </div>
+    <div class="row-3">
+      <div class="field-group">
+        <label class="field-label">التمريض</label>
+        <input id="setup_nurses" class="field-input" type="number" placeholder="0">
+      </div>
+      <div class="field-group">
+        <label class="field-label">الصيادلة</label>
+        <input id="setup_pharm" class="field-input" type="number" placeholder="0">
+      </div>
+      <div class="field-group">
+        <label class="field-label">فئات أخرى</label>
+        <input id="setup_other" class="field-input" type="number" placeholder="0">
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="saveSetup()">💾 حفظ والبدء</button>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <nav id="topnav">
+    <div class="logo">🏥</div>
+    <div class="titles">
+      <h1 id="nav_title">نظام تقارير الرعاية الصحية</h1>
+      <div class="subtitle" id="nav_subtitle">بيانات المنشأة</div>
+    </div>
+    <div class="actions">
+      <button class="icon-btn" onclick="showExportModal()" title="تصدير Excel">📊</button>
+      <button class="icon-btn" onclick="showPage('settings')" title="الإعدادات">⚙️</button>
+    </div>
+  </nav>
+
+  <div id="content">
+    <!-- HOME PAGE -->
+    <div class="page active" id="page-home">
+      <div class="home-banner">
+        <h2>مرحباً بك</h2>
+        <p>سجّل البيانات وصدّر التقارير بسهولة</p>
+        <div class="facility-name" id="banner_facility">—</div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="home_complaints">0</div>
+          <div class="stat-label">📝 إجمالي الشكاوى</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="home_cpr">0</div>
+          <div class="stat-label">❤️ حالات الإفاقة</div>
+        </div>
+        <div class="stat-card teal">
+          <div class="stat-value" id="home_er">0</div>
+          <div class="stat-label">🚨 مرضى الطوارئ</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-value" id="home_training">0</div>
+          <div class="stat-label">🎓 بنود التدريب</div>
+        </div>
+      </div>
+      <div class="menu-grid">
+        <div class="menu-item" onclick="showPage('facility')">
+          <div class="menu-icon" style="background:rgba(10,79,110,0.1)">🏥</div>
+          <h3>بيانات المنشأة</h3>
+        </div>
+        <div class="menu-item" onclick="showPage('clinics')">
+          <div class="menu-icon" style="background:rgba(0,201,167,0.1)">🩺</div>
+          <h3>تردد العيادات</h3>
+        </div>
+        <div class="menu-item" onclick="showPage('complaints')">
+          <div class="menu-icon" style="background:rgba(245,158,11,0.1)">📝</div>
+          <h3>سجل الشكاوى</h3>
+          <div class="count-badge" id="menu_complaints_count">0</div>
+        </div>
+        <div class="menu-item" onclick="showPage('training')">
+          <div class="menu-icon" style="background:rgba(139,92,246,0.1)">🎓</div>
+          <h3>سجل التدريب</h3>
+        </div>
+        <div class="menu-item" onclick="showPage('cpr')">
+          <div class="menu-icon" style="background:rgba(239,68,68,0.1)">❤️</div>
+          <h3>الإفاقة القلبية</h3>
+          <div class="count-badge" id="menu_cpr_count">0</div>
+        </div>
+        <div class="menu-item" onclick="showPage('er')">
+          <div class="menu-icon" style="background:rgba(34,197,94,0.1)">🚨</div>
+          <h3>الطوارئ والاستقبال</h3>
+          <div class="count-badge" id="menu_er_count">0</div>
+        </div>
+      </div>
+      <div class="export-card">
+        <h3>📤 تصدير التقرير</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px">تصدير جميع البيانات كملف Excel جاهز للرفع</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-success" onclick="exportExcel()">📊 تنزيل Excel</button>
+          <button class="btn btn-accent" onclick="shareWhatsApp()">📱 مشاركة واتساب</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FACILITY PAGE -->
+    <div class="page" id="page-facility">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(10,79,110,0.1)">🏥</div>
+          <h2>بيانات المنشأة الصحية</h2>
+        </div>
+        <div class="field-group">
+          <label class="field-label">اسم المنشأة</label>
+          <input id="fac_name" class="field-input" type="text">
+        </div>
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">كود المنشأة</label>
+            <input id="fac_code" class="field-input" type="text">
+          </div>
+          <div class="field-group">
+            <label class="field-label">نوع المنشأة</label>
+            <select id="fac_type" class="field-select">
+              <option value="">اختر...</option>
+              <option>وحدة صحية</option>
+              <option>مركز صحي</option>
+              <option>مستوصف</option>
+              <option>عيادة PHC</option>
+            </select>
+          </div>
+        </div>
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">الإدارة الصحية</label>
+            <input id="fac_admin" class="field-input" type="text">
+          </div>
+          <div class="field-group">
+            <label class="field-label">المديرية</label>
+            <input id="fac_dir" class="field-input" type="text">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">العنوان</label>
+          <input id="fac_addr" class="field-input" type="text">
+        </div>
+        <div class="section-divider">بيانات عددية</div>
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">إجمالي عدد المواطنين</label>
+            <input id="fac_pop" class="field-input" type="number" placeholder="0">
+          </div>
+          <div class="field-group">
+            <label class="field-label">عدد العيادات</label>
+            <input id="fac_nclinics" class="field-input" type="number" placeholder="0">
+          </div>
+        </div>
+        <div class="row-2">
+          <div class="field-group">
+            <label class="field-label">إجمالي العاملين</label>
+            <input id="fac_nstaff" class="field-input" type="number" placeholder="0">
+          </div>
+          <div class="field-group">
+            <label class="field-label">الأطباء وأطباء الأسنان</label>
+            <input id="fac_docs" class="field-input" type="number" placeholder="0">
+          </div>
+        </div>
+        <div class="row-3">
+          <div class="field-group">
+            <label class="field-label">التمريض</label>
+            <input id="fac_nurses" class="field-input" type="number" placeholder="0">
+          </div>
+          <div class="field-group">
+            <label class="field-label">الصيادلة</label>
+            <input id="fac_pharm" class="field-input" type="number" placeholder="0">
+          </div>
+          <div class="field-group">
+            <label class="field-label">فئات أخرى</label>
+            <input id="fac_other" class="field-input" type="number" placeholder="0">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveFacility()">💾 حفظ البيانات</button>
+      </div>
+    </div>
+
+    <!-- CLINICS PAGE -->
+    <div class="page" id="page-clinics">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(0,201,167,0.1)">🩺</div>
+          <h2>تردد العيادات الشهري</h2>
+        </div>
+        <div class="clinic-table-wrap">
+          <table class="clinic-table" id="clinicsTable">
+            <thead id="clinicsTableHead"></thead>
+            <tbody id="clinicsTableBody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="saveClinics()">💾 حفظ بيانات العيادات</button>
+      </div>
+    </div>
+
+    <!-- COMPLAINTS PAGE -->
+    <div class="page" id="page-complaints">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="btn btn-primary" style="flex:1" onclick="openComplaintModal()">➕ إضافة شكوى</button>
+        <div style="flex:1;display:flex;gap:6px">
+          <div style="flex:1"></div>
+        </div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="stat-card" style="padding:10px">
+          <div class="stat-value" id="comp_total" style="font-size:22px">0</div>
+          <div class="stat-label">إجمالي</div>
+        </div>
+        <div class="stat-card green" style="padding:10px">
+          <div class="stat-value" id="comp_resolved" style="font-size:22px">0</div>
+          <div class="stat-label">محلولة</div>
+        </div>
+        <div class="stat-card yellow" style="padding:10px">
+          <div class="stat-value" id="comp_pending" style="font-size:22px">0</div>
+          <div class="stat-label">معلقة</div>
+        </div>
+      </div>
+      <div class="card" id="complaintsListCard">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(245,158,11,0.1)">📝</div>
+          <h2>قائمة الشكاوى</h2>
+        </div>
+        <div id="complaintsList"></div>
+      </div>
+    </div>
+
+    <!-- TRAINING PAGE -->
+    <div class="page" id="page-training">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(139,92,246,0.1)">🎓</div>
+          <h2>سجل التدريب</h2>
+        </div>
+        <div id="trainingContent"></div>
+        <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="saveTraining()">💾 حفظ بيانات التدريب</button>
+      </div>
+    </div>
+
+    <!-- CPR PAGE -->
+    <div class="page" id="page-cpr">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="btn btn-danger" style="flex:1" onclick="openCprModal()">➕ إضافة حالة</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card red">
+          <div class="stat-value" id="cpr_total">0</div>
+          <div class="stat-label">❤️ إجمالي الحالات</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="cpr_survived">0</div>
+          <div class="stat-label">✅ نجاة</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="cpr_died">0</div>
+          <div class="stat-label">🕊 وفاة</div>
+        </div>
+        <div class="stat-card teal">
+          <div class="stat-value" id="cpr_avg_time">0</div>
+          <div class="stat-label">⏱ متوسط الاستجابة (د)</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(239,68,68,0.1)">❤️</div>
+          <h2>سجل حالات الإفاقة القلبية</h2>
+        </div>
+        <div id="cprList"></div>
+      </div>
+    </div>
+
+    <!-- ER PAGE -->
+    <div class="page" id="page-er">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="btn btn-success" style="flex:1" onclick="openErModal()">➕ إضافة حالة طوارئ</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card teal">
+          <div class="stat-value" id="er_total">0</div>
+          <div class="stat-label">🚨 إجمالي المرضى</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-value" id="er_readmit">0</div>
+          <div class="stat-label">🔄 إعادة دخول 72س</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="er_avg_time">—</div>
+          <div class="stat-label">⏱ متوسط وقت الخدمة</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="er_rate">0%</div>
+          <div class="stat-label">📊 معدل إعادة الدخول</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(34,197,94,0.1)">🚨</div>
+          <h2>سجل الطوارئ والاستقبال</h2>
+        </div>
+        <div id="erList"></div>
+      </div>
+    </div>
+
+    <!-- INDICATORS PAGE -->
+    <div class="page" id="page-indicators">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(10,79,110,0.1)">📊</div>
+          <h2>نتائج المؤشرات الشهرية</h2>
+        </div>
+        <div id="indicatorsContent"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(10,79,110,0.1)">⚙️</div>
+          <h2>إعدادات التطبيق</h2>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-primary btn-full" onclick="showPage('facility')">✏️ تعديل بيانات المنشأة</button>
+          <button class="btn btn-success btn-full" onclick="exportExcel()">📊 تصدير Excel</button>
+          <button class="btn btn-accent btn-full" onclick="shareWhatsApp()">📱 مشاركة عبر واتساب</button>
+          <button class="btn btn-outline btn-full" onclick="downloadTemplate()">📥 تنزيل قالب Excel</button>
+          <div style="height:10px"></div>
+          <button class="btn btn-ghost btn-full" onclick="clearAllData()" style="color:var(--danger)">🗑 مسح جميع البيانات</button>
+        </div>
+        <div style="margin-top:20px;text-align:center;color:var(--text-muted);font-size:12px">
+          <p>نظام تقارير الرعاية الصحية الأولية</p>
+          <p>الإصدار 1.0.0</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav id="bottomnav">
+    <button class="nav-tab active" data-page="home" onclick="showPage('home')">
+      <span class="tab-icon">🏠</span>
+      <span class="tab-label">الرئيسية</span>
+    </button>
+    <button class="nav-tab" data-page="complaints" onclick="showPage('complaints')">
+      <span class="tab-icon">📝</span>
+      <span class="tab-label">الشكاوى</span>
+    </button>
+    <button class="nav-tab" data-page="cpr" onclick="showPage('cpr')">
+      <span class="tab-icon">❤️</span>
+      <span class="tab-label">الإفاقة</span>
+    </button>
+    <button class="nav-tab" data-page="er" onclick="showPage('er')">
+      <span class="tab-icon">🚨</span>
+      <span class="tab-label">الطوارئ</span>
+    </button>
+    <button class="nav-tab" data-page="indicators" onclick="showPage('indicators')">
+      <span class="tab-icon">📊</span>
+      <span class="tab-label">المؤشرات</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Complaint Modal -->
+<div class="modal-overlay" id="complaintModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📝 <span id="complaintModalTitle">إضافة شكوى جديدة</span></div>
+    <input type="hidden" id="comp_edit_id">
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">تاريخ الشكوى <span class="required">*</span></label>
+        <input id="comp_date" class="field-input" type="date">
+      </div>
+      <div class="field-group">
+        <label class="field-label">نوع الشكوى <span class="required">*</span></label>
+        <select id="comp_type" class="field-select">
+          <option value="">اختر...</option>
+          <option>توافر الأدوية</option>
+          <option>معاملة الفريق الطبي</option>
+          <option>وقت الانتظار</option>
+          <option>اسعار الخدمات</option>
+          <option>حقوق المرضى</option>
+          <option>الأمن والنظافة</option>
+          <option>التحويل والاحالة</option>
+          <option>الفحوصات الطبية(اشعة/ معمل)</option>
+          <option>عدم توافر الخدمة</option>
+          <option>الاعطال و الصيانة</option>
+          <option>أخرى</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">تصنيف الشكوى</label>
+      <select id="comp_cat" class="field-select">
+        <option value="">اختر...</option>
+        <option>الاغذية والمطبخ</option>
+        <option>إدارية</option>
+        <option>إجراءات الدخول</option>
+        <option>توافر الأدوية</option>
+        <option>معاملة الفريق الطبي</option>
+        <option>وقت الانتظار</option>
+        <option>اسعار الخدمات</option>
+        <option>حقوق المرضى</option>
+        <option>الأمن والنظافة</option>
+        <option>التحويل والاحالة</option>
+        <option>الفحوصات الطبية(اشعة/ معمل)</option>
+        <option>عدم توافر الخدمة</option>
+        <option>الاعطال و الصيانة</option>
+        <option>أخرى</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label class="field-label">ملخص الشكوى</label>
+      <textarea id="comp_summary" class="field-textarea" placeholder="اكتب ملخص الشكوى..."></textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">الحل</label>
+      <select id="comp_resolution" class="field-select">
+        <option value="">اختر...</option>
+        <option>تم الحل</option>
+        <option>جاري الحل</option>
+        <option>لم يتم الحل</option>
+      </select>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">تاريخ الحل</label>
+        <input id="comp_resolve_date" class="field-input" type="date">
+      </div>
+      <div class="field-group">
+        <label class="field-label">التغذية الراجعة</label>
+        <select id="comp_feedback" class="field-select">
+          <option value="">اختر...</option>
+          <option>تم التغذية الراجعة</option>
+          <option>لم يتم التغذية الراجعة</option>
+          <option>NA</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">حل فوري؟</label>
+      <div class="radio-group">
+        <div class="radio-opt"><input type="radio" name="comp_immediate" id="comp_imm_yes" value="نعم"><label for="comp_imm_yes" class="yes">✅ نعم</label></div>
+        <div class="radio-opt"><input type="radio" name="comp_immediate" id="comp_imm_no" value="لا" checked><label for="comp_imm_no" class="no">❌ لا</label></div>
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">حل خلال 72 ساعة؟</label>
+      <div class="radio-group">
+        <div class="radio-opt"><input type="radio" name="comp_72h" id="comp_72_yes" value="نعم"><label for="comp_72_yes" class="yes">✅ نعم</label></div>
+        <div class="radio-opt"><input type="radio" name="comp_72h" id="comp_72_no" value="لا" checked><label for="comp_72_no" class="no">❌ لا</label></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="saveComplaint()">💾 حفظ</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('complaintModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- CPR Modal -->
+<div class="modal-overlay" id="cprModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">❤️ <span id="cprModalTitle">إضافة حالة إفاقة قلبية</span></div>
+    <input type="hidden" id="cpr_edit_id">
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">اسم المريض <span class="required">*</span></label>
+        <input id="cpr_name" class="field-input" type="text">
+      </div>
+      <div class="field-group">
+        <label class="field-label">الرقم الطبي</label>
+        <input id="cpr_medid" class="field-input" type="text">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">تاريخ الحادثة</label>
+        <input id="cpr_date" class="field-input" type="date">
+      </div>
+      <div class="field-group">
+        <label class="field-label">مكان الحدوث</label>
+        <select id="cpr_location" class="field-select">
+          <option value="">اختر...</option>
+          <option>وحدة رعاية أولية</option>
+          <option>الطوارئ والاستقبال</option>
+          <option>الأقسام الداخلية</option>
+          <option>الرعاية المركزة</option>
+          <option>الحضانات</option>
+          <option>الغسيل الكلوي</option>
+          <option>العمليات</option>
+          <option>أخرى</option>
+        </select>
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">وقت إعلان Code Blue</label>
+        <input id="cpr_code_time" class="field-input" type="time">
+      </div>
+      <div class="field-group">
+        <label class="field-label">وقت بداية CPR</label>
+        <input id="cpr_start_time" class="field-input" type="time">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">وقت وصول الفريق كاملاً</label>
+        <input id="cpr_team_time" class="field-input" type="time">
+      </div>
+      <div class="field-group">
+        <label class="field-label">وقت انتهاء CPR</label>
+        <input id="cpr_end_time" class="field-input" type="time">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">عدد دورات CPR</label>
+        <input id="cpr_cycles" class="field-input" type="number" placeholder="0">
+      </div>
+      <div class="field-group">
+        <label class="field-label">نتيجة الإنعاش</label>
+        <select id="cpr_outcome" class="field-select">
+          <option value="">اختر...</option>
+          <option>نجاة</option>
+          <option>وفاة</option>
+          <option>تحسن</option>
+          <option>نقل/إحالة</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">نموذج التوثيق مكتمل؟</label>
+      <div class="radio-group">
+        <div class="radio-opt"><input type="radio" name="cpr_doc" id="cpr_doc_yes" value="نعم"><label for="cpr_doc_yes" class="yes">✅ نعم</label></div>
+        <div class="radio-opt"><input type="radio" name="cpr_doc" id="cpr_doc_no" value="لا" checked><label for="cpr_doc_no" class="no">❌ لا</label></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-danger" style="flex:1" onclick="saveCpr()">💾 حفظ</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('cprModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ER Modal -->
+<div class="modal-overlay" id="erModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🚨 <span id="erModalTitle">إضافة حالة طوارئ</span></div>
+    <input type="hidden" id="er_edit_id">
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">اسم المريض <span class="required">*</span></label>
+        <input id="er_name" class="field-input" type="text">
+      </div>
+      <div class="field-group">
+        <label class="field-label">الرقم الطبي / رقم السجل</label>
+        <input id="er_medid" class="field-input" type="text">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">تاريخ الزيارة</label>
+      <input id="er_date" class="field-input" type="date">
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">ساعة الدخول</label>
+        <input id="er_in_time" class="field-input" type="time">
+      </div>
+      <div class="field-group">
+        <label class="field-label">ساعة الخروج</label>
+        <input id="er_out_time" class="field-input" type="time">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">إعادة دخول لنفس السبب خلال 72 ساعة؟</label>
+      <div class="radio-group">
+        <div class="radio-opt"><input type="radio" name="er_readmit" id="er_ra_yes" value="1"><label for="er_ra_yes" class="yes">✅ نعم</label></div>
+        <div class="radio-opt"><input type="radio" name="er_readmit" id="er_ra_no" value="0" checked><label for="er_ra_no" class="no">❌ لا</label></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-success" style="flex:1" onclick="saveEr()">💾 حفظ</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('erModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📤 تصدير التقرير</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">اختر طريقة التصدير أو المشاركة</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-success btn-full" onclick="exportExcel();closeModal('exportModal')">
+        📊 تنزيل ملف Excel (.xlsx)
+      </button>
+      <button class="btn btn-accent btn-full" onclick="shareWhatsApp();closeModal('exportModal')">
+        📱 مشاركة رابط واتساب
+      </button>
+      <button class="btn btn-outline btn-full" onclick="downloadTemplate()">
+        📥 تنزيل قالب Excel الأصلي
+      </button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('exportModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATABASE =====
+let db;
+const DB_NAME = 'PHC_DB';
+const DB_VERSION = 1;
+
+const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const MONTHS_EN = ['Jan-26','Feb-26','Mar-26','Apr-26','May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26'];
+
+const CLINIC_TYPES = [
+  {name:'طب الأسرة', monthlyFreq:''},
+  {name:'تنظيم الأسرة', monthlyFreq:''},
+  {name:'رعاية الأمومة والطفولة', monthlyFreq:''},
+  {name:'متابعة الاطفال', monthlyFreq:''},
+  {name:'IMCI', monthlyFreq:'NA'},
+  {name:'الاسنان', monthlyFreq:''},
+  {name:'أخرى', monthlyFreq:''},
+];
+
+const TRAINING_ITEMS = [
+  {id:'tr1', name:'إجمالي عدد الأطباء بالوحدة'},
+  {id:'tr2', name:'إجمالي عدد التمريض بالوحدة'},
+  {id:'tr3', name:'إجمالي عدد العاملين بالوحدة'},
+  {id:'tr4', name:'عدد الأطباء المدربين على BLS (شهادة معتمدة)'},
+  {id:'tr5', name:'عدد هيئة التمريض المدربين على BLS (شهادة معتمدة)'},
+  {id:'tr6', name:'عدد العاملين المدربين على الدفاع المدني (شهادات معتمدة)'},
+];
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('facility')) db.createObjectStore('facility', {keyPath:'id'});
+      if (!db.objectStoreNames.contains('clinics')) db.createObjectStore('clinics', {keyPath:'id'});
+      if (!db.objectStoreNames.contains('complaints')) db.createObjectStore('complaints', {keyPath:'id', autoIncrement:true});
+      if (!db.objectStoreNames.contains('training')) db.createObjectStore('training', {keyPath:'id'});
+      if (!db.objectStoreNames.contains('cpr')) db.createObjectStore('cpr', {keyPath:'id', autoIncrement:true});
+      if (!db.objectStoreNames.contains('er')) db.createObjectStore('er', {keyPath:'id', autoIncrement:true});
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+  });
+}
+
+function dbPut(store, obj) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(obj);
+    req.onsuccess = () => resolve(req.result);
+  });
+}
+
+function dbAdd(store, obj) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).add(obj);
+    req.onsuccess = () => resolve(req.result);
+  });
+}
+
+function dbDelete(store, key) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => resolve();
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+// ===== INIT =====
+async function init() {
+  try {
+    db = await openDB();
+    const fac = await dbGet('facility', 'main');
+    if (!fac || !fac.name) {
+      document.getElementById('setupScreen').classList.add('show');
+    } else {
+      await loadAll();
+    }
+    document.getElementById('loadingScreen').style.display = 'none';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+  } catch(e) {
+    console.error(e);
+    document.getElementById('loadingScreen').style.display = 'none';
+  }
+}
+
+async function loadAll() {
+  await loadFacility();
+  await loadClinics();
+  await loadTraining();
+  await renderComplaints();
+  await renderCprList();
+  await renderErList();
+  await renderIndicators();
+  updateHomeStats();
+}
+
+// ===== TOAST =====
+function toast(msg, type='', dur=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = type ? `show ${type}` : 'show';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', dur);
+}
+
+// ===== PAGE NAVIGATION =====
+const PAGE_TITLES = {
+  home: ['الرئيسية', 'نظام تقارير الرعاية الصحية الأولية'],
+  facility: ['بيانات المنشأة', 'بيانات المنشأة الصحية'],
+  clinics: ['تردد العيادات', 'تردد العيادات الشهري'],
+  complaints: ['الشكاوى', 'سجل الشكاوى'],
+  training: ['التدريب', 'سجل التدريب'],
+  cpr: ['الإفاقة القلبية', 'سجل الإفاقة القلبية التنفسية'],
+  er: ['الطوارئ', 'سجل الطوارئ والاستقبال'],
+  indicators: ['المؤشرات', 'نتائج المؤشرات الشهرية'],
+  settings: ['الإعدادات', 'إعدادات التطبيق'],
+};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.page === name);
+  });
+  const page = document.getElementById('page-' + name);
+  if (page) { page.classList.add('active'); document.getElementById('content').scrollTop = 0; }
+  const [sub, title] = PAGE_TITLES[name] || [name, name];
+  document.getElementById('nav_title').textContent = title;
+  document.getElementById('nav_subtitle').textContent = sub;
+}
+
+// ===== MODAL =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ===== SETUP =====
+async function saveSetup() {
+  const name = document.getElementById('setup_name').value.trim();
+  if (!name) { toast('يرجى إدخال اسم المنشأة', 'error'); return; }
+  const fac = {
+    id: 'main',
+    name, code: v('setup_code'), type: v('setup_type'),
+    admin: v('setup_admin'), dir: v('setup_dir'), addr: v('setup_addr'),
+    pop: n('setup_pop'), clinics: n('setup_clinics'),
+    staff: n('setup_staff'), docs: n('setup_docs'),
+    nurses: n('setup_nurses'), pharm: n('setup_pharm'), other: n('setup_other'),
+  };
+  await dbPut('facility', fac);
+  document.getElementById('setupScreen').classList.remove('show');
+  await loadAll();
+  toast('تم حفظ بيانات المنشأة ✅', 'success');
+}
+
+// ===== FACILITY =====
+async function loadFacility() {
+  const fac = await dbGet('facility', 'main');
+  if (!fac) return;
+  const fields = ['name','code','type','admin','dir','addr','pop','clinics','staff','docs','nurses','pharm','other','nclinics','nstaff'];
+  // Map fac keys to form ids
+  const map = {name:'fac_name',code:'fac_code',type:'fac_type',admin:'fac_admin',dir:'fac_dir',addr:'fac_addr',
+    pop:'fac_pop',clinics:'fac_nclinics',staff:'fac_nstaff',docs:'fac_docs',nurses:'fac_nurses',pharm:'fac_pharm',other:'fac_other'};
+  for (const [k,id] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el && fac[k] !== undefined) el.value = fac[k];
+  }
+  document.getElementById('banner_facility').textContent = fac.name || '—';
+}
+
+async function saveFacility() {
+  const fac = {
+    id:'main',
+    name: v('fac_name'), code: v('fac_code'), type: v('fac_type'),
+    admin: v('fac_admin'), dir: v('fac_dir'), addr: v('fac_addr'),
+    pop: n('fac_pop'), clinics: n('fac_nclinics'), staff: n('fac_nstaff'),
+    docs: n('fac_docs'), nurses: n('fac_nurses'), pharm: n('fac_pharm'), other: n('fac_other'),
+  };
+  await dbPut('facility', fac);
+  document.getElementById('banner_facility').textContent = fac.name || '—';
+  toast('تم حفظ بيانات المنشأة ✅', 'success');
+}
+
+// ===== CLINICS =====
+function buildClinicsTable() {
+  const head = document.getElementById('clinicsTableHead');
+  const body = document.getElementById('clinicsTableBody');
+  // Header
+  let htr = '<tr><th>العيادة</th><th>التردد الشهري</th>';
+  MONTHS_AR.forEach((m,i) => htr += `<th>${m.slice(0,3)}</th>`);
+  htr += '</tr>';
+  head.innerHTML = htr;
+  // Body
+  body.innerHTML = CLINIC_TYPES.map((c,ci) => {
+    let row = `<tr><td>${c.name}</td><td><input type="text" id="cl_freq_${ci}" style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:12px;text-align:center" placeholder="${c.monthlyFreq||''}"></td>`;
+    MONTHS_AR.forEach((_,mi) => {
+      row += `<td><input type="number" id="cl_${ci}_${mi}" style="width:56px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:12px;text-align:center" placeholder="0" min="0"></td>`;
+    });
+    row += '</tr>';
+    return row;
+  }).join('');
+}
+
+async function loadClinics() {
+  buildClinicsTable();
+  const data = await dbGet('clinics', 'main');
+  if (!data || !data.rows) return;
+  data.rows.forEach((row, ci) => {
+    const freqEl = document.getElementById(`cl_freq_${ci}`);
+    if (freqEl && row.freq !== undefined) freqEl.value = row.freq;
+    if (row.months) row.months.forEach((val, mi) => {
+      const el = document.getElementById(`cl_${ci}_${mi}`);
+      if (el) el.value = val || '';
+    });
+  });
+}
+
+async function saveClinics() {
+  const rows = CLINIC_TYPES.map((c, ci) => {
+    const freq = document.getElementById(`cl_freq_${ci}`)?.value || '';
+    const months = MONTHS_AR.map((_,mi) => {
+      const v = document.getElementById(`cl_${ci}_${mi}`)?.value;
+      return v !== '' && v !== undefined ? Number(v) : '';
+    });
+    return {name: c.name, freq, months};
+  });
+  await dbPut('clinics', {id:'main', rows});
+  toast('تم حفظ بيانات العيادات ✅', 'success');
+}
+
+// ===== COMPLAINTS =====
+function openComplaintModal(id) {
+  document.getElementById('comp_edit_id').value = id || '';
+  document.getElementById('complaintModalTitle').textContent = id ? 'تعديل الشكوى' : 'إضافة شكوى جديدة';
+  if (!id) {
+    ['comp_date','comp_type','comp_cat','comp_summary','comp_resolution','comp_resolve_date','comp_feedback'].forEach(i => {
+      const el = document.getElementById(i);
+      if (el) el.value = '';
+    });
+    document.getElementById('comp_imm_no').checked = true;
+    document.getElementById('comp_72_no').checked = true;
+    document.getElementById('comp_date').value = new Date().toISOString().split('T')[0];
+  }
+  openModal('complaintModal');
+}
+
+async function openComplaintEdit(id) {
+  const all = await dbGetAll('complaints');
+  const rec = all.find(r => r.id === id);
+  if (!rec) return;
+  document.getElementById('comp_edit_id').value = id;
+  document.getElementById('complaintModalTitle').textContent = 'تعديل الشكوى';
+  sv('comp_date', rec.date);
+  sv('comp_type', rec.type);
+  sv('comp_cat', rec.category);
+  sv('comp_summary', rec.summary);
+  sv('comp_resolution', rec.resolution);
+  sv('comp_resolve_date', rec.resolve_date);
+  sv('comp_feedback', rec.feedback);
+  setRadio('comp_immediate', rec.immediate || 'لا');
+  setRadio('comp_72h', rec.hr72 || 'لا');
+  openModal('complaintModal');
+}
+
+async function saveComplaint() {
+  const date = v('comp_date');
+  const type = v('comp_type');
+  if (!date || !type) { toast('يرجى إدخال التاريخ ونوع الشكوى', 'error'); return; }
+  const editId = document.getElementById('comp_edit_id').value;
+  const rec = {
+    date, type, category: v('comp_cat'), summary: v('comp_summary'),
+    resolution: v('comp_resolution'), resolve_date: v('comp_resolve_date'),
+    feedback: v('comp_feedback'),
+    immediate: getRadio('comp_immediate'),
+    hr72: getRadio('comp_72h'),
+    month: getMonthLabel(date),
+  };
+  if (editId) {
+    rec.id = Number(editId);
+    await dbPut('complaints', rec);
+  } else {
+    await dbAdd('complaints', rec);
+  }
+  closeModal('complaintModal');
+  await renderComplaints();
+  updateHomeStats();
+  toast('تم حفظ الشكوى ✅', 'success');
+}
+
+async function deleteComplaint(id) {
+  if (!confirm('حذف هذه الشكوى؟')) return;
+  await dbDelete('complaints', id);
+  await renderComplaints();
+  updateHomeStats();
+  toast('تم الحذف', '');
+}
+
+async function renderComplaints() {
+  const all = await dbGetAll('complaints');
+  all.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const total = all.length;
+  const resolved = all.filter(r => r.resolution === 'تم الحل').length;
+  const pending = total - resolved;
+  document.getElementById('comp_total').textContent = total;
+  document.getElementById('comp_resolved').textContent = resolved;
+  document.getElementById('comp_pending').textContent = pending;
+  document.getElementById('menu_complaints_count').textContent = total;
+
+  const list = document.getElementById('complaintsList');
+  if (!all.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>لا توجد شكاوى مسجلة</p></div>`;
+    return;
+  }
+  list.innerHTML = all.map(r => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px;margin-bottom:3px">${r.type || '—'}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">${r.date || ''} ${r.month ? '· '+r.month : ''}</div>
+          ${r.summary ? `<div style="font-size:13px;color:var(--text);margin-bottom:4px">${r.summary}</div>` : ''}
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            ${r.resolution ? `<span class="badge ${r.resolution==='تم الحل'?'badge-green':'badge-yellow'}">${r.resolution}</span>` : ''}
+            ${r.immediate==='نعم' ? `<span class="badge badge-blue">فوري</span>` : ''}
+            ${r.hr72==='نعم' ? `<span class="badge badge-blue">72 ساعة</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="openComplaintEdit(${r.id})" style="font-size:14px">✏️</button>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteComplaint(${r.id})" style="font-size:14px;color:var(--danger)">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ===== TRAINING =====
+function buildTrainingUI() {
+  const el = document.getElementById('trainingContent');
+  el.innerHTML = TRAINING_ITEMS.map(item => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">${item.name}</div>
+      <div class="month-grid-input">
+        ${MONTHS_AR.map((m,mi) => `
+          <div class="month-cell">
+            <div class="m-name">${m.slice(0,3)}</div>
+            <input type="number" id="tr_${item.id}_${mi}" min="0" placeholder="—">
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+async function loadTraining() {
+  buildTrainingUI();
+  const data = await dbGet('training', 'main');
+  if (!data || !data.items) return;
+  TRAINING_ITEMS.forEach(item => {
+    const row = data.items.find(r => r.id === item.id);
+    if (row && row.months) {
+      row.months.forEach((val, mi) => {
+        const el = document.getElementById(`tr_${item.id}_${mi}`);
+        if (el && val !== '' && val !== undefined) el.value = val;
+      });
+    }
+  });
+}
+
+async function saveTraining() {
+  const items = TRAINING_ITEMS.map(item => {
+    const months = MONTHS_AR.map((_,mi) => {
+      const val = document.getElementById(`tr_${item.id}_${mi}`)?.value;
+      return val !== '' && val !== undefined ? Number(val) : '';
+    });
+    return {id: item.id, months};
+  });
+  await dbPut('training', {id:'main', items});
+  toast('تم حفظ بيانات التدريب ✅', 'success');
+}
+
+// ===== CPR =====
+function openCprModal(id) {
+  document.getElementById('cpr_edit_id').value = id || '';
+  document.getElementById('cprModalTitle').textContent = id ? 'تعديل الحالة' : 'إضافة حالة إفاقة قلبية';
+  if (!id) {
+    ['cpr_name','cpr_medid','cpr_location','cpr_outcome','cpr_cycles','cpr_code_time','cpr_start_time','cpr_team_time','cpr_end_time'].forEach(i => {
+      const el = document.getElementById(i);
+      if (el) el.value = '';
+    });
+    document.getElementById('cpr_date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('cpr_doc_no').checked = true;
+  }
+  openModal('cprModal');
+}
+
+async function saveCpr() {
+  const name = v('cpr_name');
+  if (!name) { toast('يرجى إدخال اسم المريض', 'error'); return; }
+  const editId = document.getElementById('cpr_edit_id').value;
+  const rec = {
+    name, medid: v('cpr_medid'), date: v('cpr_date'),
+    location: v('cpr_location'), outcome: v('cpr_outcome'),
+    cycles: n('cpr_cycles'), doc_complete: getRadio('cpr_doc'),
+    code_time: v('cpr_code_time'), start_time: v('cpr_start_time'),
+    team_time: v('cpr_team_time'), end_time: v('cpr_end_time'),
+    month: getMonthLabel(v('cpr_date')),
+    response_min: calcTimeDiff(v('cpr_code_time'), v('cpr_team_time')),
+  };
+  if (editId) {
+    rec.id = Number(editId);
+    await dbPut('cpr', rec);
+  } else {
+    await dbAdd('cpr', rec);
+  }
+  closeModal('cprModal');
+  await renderCprList();
+  updateHomeStats();
+  toast('تم حفظ الحالة ✅', 'success');
+}
+
+async function deleteCpr(id) {
+  if (!confirm('حذف هذه الحالة؟')) return;
+  await dbDelete('cpr', id);
+  await renderCprList();
+  updateHomeStats();
+}
+
+async function renderCprList() {
+  const all = await dbGetAll('cpr');
+  all.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const total = all.length;
+  const survived = all.filter(r => r.outcome === 'نجاة').length;
+  const died = all.filter(r => r.outcome === 'وفاة').length;
+  const responseTimes = all.filter(r => r.response_min > 0).map(r => r.response_min);
+  const avgResponse = responseTimes.length ? (responseTimes.reduce((a,b)=>a+b,0)/responseTimes.length).toFixed(1) : 0;
+
+  document.getElementById('cpr_total').textContent = total;
+  document.getElementById('cpr_survived').textContent = survived;
+  document.getElementById('cpr_died').textContent = died;
+  document.getElementById('cpr_avg_time').textContent = avgResponse;
+  document.getElementById('menu_cpr_count').textContent = total;
+
+  const list = document.getElementById('cprList');
+  if (!all.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">❤️</div><p>لا توجد حالات مسجلة</p></div>`;
+    return;
+  }
+  list.innerHTML = all.map(r => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;margin-bottom:2px">${r.name}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${r.date || ''} · ${r.location || ''}</div>
+          <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
+            <span class="badge ${r.outcome==='نجاة'?'badge-green':r.outcome==='وفاة'?'badge-red':'badge-blue'}">${r.outcome||'—'}</span>
+            ${r.response_min > 0 ? `<span class="badge badge-yellow">⏱ ${r.response_min} د</span>` : ''}
+            ${r.doc_complete==='نعم' ? `<span class="badge badge-blue">توثيق ✅</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteCpr(${r.id})" style="font-size:14px;color:var(--danger)">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ===== ER =====
+function openErModal(id) {
+  document.getElementById('er_edit_id').value = id || '';
+  document.getElementById('erModalTitle').textContent = id ? 'تعديل الحالة' : 'إضافة حالة طوارئ';
+  if (!id) {
+    ['er_name','er_medid','er_in_time','er_out_time'].forEach(i => {
+      const el = document.getElementById(i); if (el) el.value = '';
+    });
+    document.getElementById('er_date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('er_ra_no').checked = true;
+  }
+  openModal('erModal');
+}
+
+async function saveEr() {
+  const name = v('er_name');
+  if (!name) { toast('يرجى إدخال اسم المريض', 'error'); return; }
+  const editId = document.getElementById('er_edit_id').value;
+  const inTime = v('er_in_time'), outTime = v('er_out_time');
+  const duration_min = calcTimeDiff(inTime, outTime);
+  const rec = {
+    name, medid: v('er_medid'), date: v('er_date'),
+    in_time: inTime, out_time: outTime, duration_min,
+    readmit: getRadio('er_readmit') === '1' ? 1 : 0,
+    month: getMonthLabel(v('er_date')),
+  };
+  if (editId) {
+    rec.id = Number(editId);
+    await dbPut('er', rec);
+  } else {
+    await dbAdd('er', rec);
+  }
+  closeModal('erModal');
+  await renderErList();
+  updateHomeStats();
+  toast('تم حفظ الحالة ✅', 'success');
+}
+
+async function deleteEr(id) {
+  if (!confirm('حذف هذه الحالة؟')) return;
+  await dbDelete('er', id);
+  await renderErList();
+  updateHomeStats();
+}
+
+async function renderErList() {
+  const all = await dbGetAll('er');
+  all.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const total = all.length;
+  const readmit = all.filter(r => r.readmit === 1).length;
+  const durations = all.filter(r => r.duration_min > 0).map(r => r.duration_min);
+  const avgDur = durations.length ? (durations.reduce((a,b)=>a+b,0)/durations.length).toFixed(0) : '—';
+  const rate = total > 0 ? ((readmit/total)*100).toFixed(1) + '%' : '0%';
+
+  document.getElementById('er_total').textContent = total;
+  document.getElementById('er_readmit').textContent = readmit;
+  document.getElementById('er_avg_time').textContent = avgDur === '—' ? '—' : avgDur + ' د';
+  document.getElementById('er_rate').textContent = rate;
+  document.getElementById('menu_er_count').textContent = total;
+
+  const list = document.getElementById('erList');
+  if (!all.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🚨</div><p>لا توجد حالات طوارئ مسجلة</p></div>`;
+    return;
+  }
+  list.innerHTML = all.map(r => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;margin-bottom:2px">${r.name}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${r.date||''} · ${r.in_time||''} – ${r.out_time||''}</div>
+          <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
+            ${r.duration_min > 0 ? `<span class="badge badge-blue">⏱ ${r.duration_min} د</span>` : ''}
+            ${r.readmit ? `<span class="badge badge-red">إعادة دخول</span>` : '<span class="badge badge-green">زيارة جديدة</span>'}
+          </div>
+        </div>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteEr(${r.id})" style="font-size:14px;color:var(--danger)">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ===== INDICATORS =====
+async function renderIndicators() {
+  const [complaints, cpr, er, training, clinics] = await Promise.all([
+    dbGetAll('complaints'), dbGetAll('cpr'), dbGetAll('er'),
+    dbGet('training','main'), dbGet('clinics','main')
+  ]);
+  const el = document.getElementById('indicatorsContent');
+
+  // Build monthly indicator arrays
+  const indicators = [];
+  // Complaints indicators
+  const compByMonth = groupByMonth(complaints, 'month');
+  indicators.push({code:'FU-COMP-01', name:'إجمالي عدد الشكاوى', data: MONTHS_EN.map(m => compByMonth[m]?.length || 0)});
+  indicators.push({code:'FU-COMP-02', name:'الشكاوى المحلولة', data: MONTHS_EN.map(m => compByMonth[m]?.filter(r=>r.resolution==='تم الحل').length || 0)});
+  // CPR indicators
+  const cprByMonth = groupByMonth(cpr, 'month');
+  indicators.push({code:'FU-029', name:'حالات توقف القلب', data: MONTHS_EN.map(m => cprByMonth[m]?.length || 0)});
+  indicators.push({code:'FU-030', name:'نسبة النجاة بعد الإفاقة', data: MONTHS_EN.map(m => {
+    const arr = cprByMonth[m] || [];
+    if (!arr.length) return '—';
+    return ((arr.filter(r=>r.outcome==='نجاة').length/arr.length)*100).toFixed(1)+'%';
+  })});
+  // ER indicators
+  const erByMonth = groupByMonth(er, 'month');
+  indicators.push({code:'FU-016', name:'إجمالي مرضى الطوارئ', data: MONTHS_EN.map(m => erByMonth[m]?.length || 0)});
+  indicators.push({code:'FU-017', name:'معدل إعادة الدخول خلال 72س (%)', data: MONTHS_EN.map(m => {
+    const arr = erByMonth[m] || [];
+    if (!arr.length) return '—';
+    return ((arr.filter(r=>r.readmit).length/arr.length)*100).toFixed(1)+'%';
+  })});
+  // Training indicators
+  if (training && training.items) {
+    const tr = training.items;
+    const getVal = (id, mi) => { const row = tr.find(r=>r.id===id); return row?.months?.[mi] ?? '—'; };
+    indicators.push({code:'FU-006', name:'نسبة العاملين المدربين على الدفاع المدني', data: MONTHS_AR.map((_,mi) => {
+      const total = getVal('tr3',mi), trained = getVal('tr6',mi);
+      if (total === '' || trained === '') return '—';
+      if (!Number(total)) return '—';
+      return (Number(trained)/Number(total)*100).toFixed(1)+'%';
+    })});
+    indicators.push({code:'FU-025', name:'نسبة تدريب الأطباء على BLS', data: MONTHS_AR.map((_,mi) => {
+      const total = getVal('tr1',mi), trained = getVal('tr4',mi);
+      if (total === '' || trained === '') return '—';
+      if (!Number(total)) return '—';
+      return (Number(trained)/Number(total)*100).toFixed(1)+'%';
+    })});
+    indicators.push({code:'FU-026', name:'نسبة تدريب التمريض على BLS', data: MONTHS_AR.map((_,mi) => {
+      const total = getVal('tr2',mi), trained = getVal('tr5',mi);
+      if (total === '' || trained === '') return '—';
+      if (!Number(total)) return '—';
+      return (Number(trained)/Number(total)*100).toFixed(1)+'%';
+    })});
+  }
+  // Clinic frequency
+  if (clinics && clinics.rows) {
+    const total = MONTHS_AR.map((_,mi) => clinics.rows.reduce((sum,row) => {
+      const val = row.months?.[mi];
+      return sum + (val !== '' && val !== undefined ? Number(val)||0 : 0);
+    }, 0));
+    indicators.push({code:'FU-004', name:'إجمالي تردد العيادات الخارجية', data: total.map(v => v || '—')});
+  }
+
+  el.innerHTML = indicators.map(ind => `
+    <div class="indicator-row">
+      <div>
+        <span class="indicator-code">${ind.code}</span>
+        <div style="font-size:13px;font-weight:600;margin-top:3px">${ind.name}</div>
+        <div style="display:flex;gap:4px;overflow-x:auto;margin-top:5px;scrollbar-width:none;padding-bottom:2px">
+          ${MONTHS_AR.map((m,mi) => `<div style="text-align:center;flex-shrink:0">
+            <div style="font-size:10px;color:var(--text-muted);font-weight:600">${m.slice(0,3)}</div>
+            <div style="background:var(--surface2);border-radius:5px;padding:3px 6px;font-size:12px;font-weight:700;color:${String(ind.data[mi]).includes('%') || Number(ind.data[mi])>0 ? 'var(--primary)':'var(--text-muted)'};min-width:40px;text-align:center">${ind.data[mi]}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ===== HOME STATS =====
+async function updateHomeStats() {
+  const [complaints, cpr, er, training] = await Promise.all([
+    dbGetAll('complaints'), dbGetAll('cpr'), dbGetAll('er'), dbGet('training','main')
+  ]);
+  document.getElementById('home_complaints').textContent = complaints.length;
+  document.getElementById('home_cpr').textContent = cpr.length;
+  document.getElementById('home_er').textContent = er.length;
+  const trCount = training?.items?.reduce((sum,item) => sum + item.months.filter(v=>v!=='').length, 0) || 0;
+  document.getElementById('home_training').textContent = trCount;
+  await renderIndicators();
+}
+
+// ===== EXPORT EXCEL =====
+async function exportExcel() {
+  const [facility, clinics, complaints, training, cpr, er] = await Promise.all([
+    dbGet('facility','main'), dbGet('clinics','main'),
+    dbGetAll('complaints'), dbGet('training','main'),
+    dbGetAll('cpr'), dbGetAll('er')
+  ]);
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: بيانات المنشأة و تردد العيادات
+  const sh1 = [];
+  sh1.push(['بيانات المنشأة الصحية و تردد العيادات']);
+  sh1.push(['اسم المنشأة', facility?.name || '']);
+  sh1.push(['كود المنشأة', facility?.code || '']);
+  sh1.push(['نوع المنشأة', facility?.type || '']);
+  sh1.push(['الادارة الصحية', facility?.admin || '']);
+  sh1.push(['المديرية', facility?.dir || '']);
+  sh1.push(['العنوان', facility?.addr || '']);
+  sh1.push(['اجمالي عدد المواطنين', facility?.pop || '']);
+  sh1.push(['عدد العيادات', facility?.clinics || '']);
+  sh1.push(['اجمالي عدد العاملين', facility?.staff || '']);
+  sh1.push(['عدد الاطباء واطباء الاسنان', facility?.docs || '']);
+  sh1.push(['عدد التمريض', facility?.nurses || '']);
+  sh1.push(['عدد الصيادلة', facility?.pharm || '']);
+  sh1.push(['عدد الفئات الاخرى', facility?.other || '']);
+  sh1.push([]);
+  const clinicHeader = ['تخصصات العيادات', 'تردد العيادة الشهري', ...MONTHS_EN];
+  sh1.push(clinicHeader);
+  CLINIC_TYPES.forEach((c,ci) => {
+    const row = clinics?.rows?.[ci];
+    sh1.push(['', c.name, row?.freq || '', ...MONTHS_EN.map((_,mi) => row?.months?.[mi] || '')]);
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet(sh1);
+  XLSX.utils.book_append_sheet(wb, ws1, 'بيانات المنشأة و تردد العيادات');
+
+  // Sheet 2: سجل الشكاوى
+  const sh2 = [['م','تاريخ الشكوي','نوع الشكوي','ملخص الشكوي','الحل','تاريخ الحل','التغذية الراجعة','حل فوري','حل خلال 72 ساعة','زمن الحل(يوم)','الشهر','تصنيفات الشكاوي']];
+  complaints.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r,i) => {
+    const daysToResolve = r.date && r.resolve_date ? Math.round((new Date(r.resolve_date)-new Date(r.date))/(1000*60*60*24)) : '';
+    sh2.push([i+1, r.date||'', r.type||'', r.summary||'', r.resolution||'', r.resolve_date||'', r.feedback||'', r.immediate||'لا', r.hr72||'لا', daysToResolve, r.month||'', r.category||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh2), 'سجل الشكاوى');
+
+  // Sheet 3: تدريب
+  const sh3 = [['م','البند',...MONTHS_EN]];
+  TRAINING_ITEMS.forEach((item,i) => {
+    const row = training?.items?.find(r=>r.id===item.id);
+    sh3.push([i+1, item.name, ...MONTHS_EN.map((_,mi) => row?.months?.[mi] ?? '')]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh3), 'تدريب');
+
+  // Sheet 4: الإفاقة القلبية
+  const sh4 = [['م','اسم المريض','الرقم الطبي','تاريخ الحادثة','مكان الحدوث','وقت اعلان Code Blue','وقت بداية CPR','وقت وصول الفريق','وقت انتهاء CPR','عدد دورات CPR','نتيجة الانعاش','نموذج التوثيق','الشهر','زمن الاستجابة (د)']];
+  cpr.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r,i) => {
+    sh4.push([i+1, r.name||'', r.medid||'', r.date||'', r.location||'', r.code_time||'', r.start_time||'', r.team_time||'', r.end_time||'', r.cycles||'', r.outcome||'', r.doc_complete||'', r.month||'', r.response_min||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh4), 'الإفاقة القلبية');
+
+  // Sheet 5: الطوارئ والاستقبال
+  const sh5 = [['م','اسم المريض','الرقم الطبي','تاريخ الزيارة','ساعة الدخول','ساعة الخروج','الوقت المستغرق (د)','اعادة الدخول خلال 72 ساعة','الشهر']];
+  er.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r,i) => {
+    sh5.push([i+1, r.name||'', r.medid||'', r.date||'', r.in_time||'', r.out_time||'', r.duration_min||'', r.readmit?'نعم':'لا', r.month||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh5), 'الطوارئ والاستقبال');
+
+  // Sheet 6: الاجمالي الشهري
+  const compByMonth = groupByMonth(complaints, 'month');
+  const cprByMonth = groupByMonth(cpr, 'month');
+  const erByMonth = groupByMonth(er, 'month');
+  const sh6 = [['البند', ...MONTHS_EN]];
+  sh6.push(['📋 الشكاوى']);
+  sh6.push(['إجمالي عدد الشكاوى', ...MONTHS_EN.map(m => compByMonth[m]?.length||0)]);
+  sh6.push(['الشكاوى المحلولة', ...MONTHS_EN.map(m => compByMonth[m]?.filter(r=>r.resolution==='تم الحل').length||0)]);
+  sh6.push(['الشكاوى الفورية', ...MONTHS_EN.map(m => compByMonth[m]?.filter(r=>r.immediate==='نعم').length||0)]);
+  sh6.push(['الشكاوى المحلولة خلال 72 ساعة', ...MONTHS_EN.map(m => compByMonth[m]?.filter(r=>r.hr72==='نعم').length||0)]);
+  sh6.push(['❤️ الإفاقة القلبية']);
+  sh6.push(['إجمالي حالات توقف القلب', ...MONTHS_EN.map(m => cprByMonth[m]?.length||0)]);
+  sh6.push(['حالات النجاة', ...MONTHS_EN.map(m => cprByMonth[m]?.filter(r=>r.outcome==='نجاة').length||0)]);
+  sh6.push(['حالات الوفاة', ...MONTHS_EN.map(m => cprByMonth[m]?.filter(r=>r.outcome==='وفاة').length||0)]);
+  sh6.push(['🚨 الطوارئ والاستقبال']);
+  sh6.push(['إجمالي مرضى الطوارئ', ...MONTHS_EN.map(m => erByMonth[m]?.length||0)]);
+  sh6.push(['إعادة الدخول خلال 72 ساعة', ...MONTHS_EN.map(m => erByMonth[m]?.filter(r=>r.readmit).length||0)]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh6), 'الاجمالي الشهري');
+
+  // Sheet 7: نتائج المؤشرات الشهرية
+  const sh7 = [['م','كود المؤشر','المؤشر', ...MONTHS_EN]];
+  sh7.push(['مؤشرات الشكاوى']);
+  sh7.push([1,'FU-COMP-01','إجمالي عدد الشكاوى',...MONTHS_EN.map(m=>compByMonth[m]?.length||0)]);
+  sh7.push([2,'FU-COMP-02','الشكاوى المحلولة',...MONTHS_EN.map(m=>compByMonth[m]?.filter(r=>r.resolution==='تم الحل').length||0)]);
+  sh7.push(['مؤشرات الطوارئ']);
+  sh7.push([3,'FU-016','إجمالي مرضى الطوارئ',...MONTHS_EN.map(m=>erByMonth[m]?.length||0)]);
+  sh7.push([4,'FU-017','معدل إعادة الدخول خلال 72 ساعة',...MONTHS_EN.map(m=>{
+    const arr=erByMonth[m]||[]; if(!arr.length) return '—';
+    return ((arr.filter(r=>r.readmit).length/arr.length)*100).toFixed(1)+'%';
+  })]);
+  sh7.push(['مؤشرات الإفاقة القلبية']);
+  sh7.push([5,'FU-029','عدد حالات توقف القلب',...MONTHS_EN.map(m=>cprByMonth[m]?.length||0)]);
+  sh7.push([6,'FU-030','نسبة النجاة بعد الإفاقة',...MONTHS_EN.map(m=>{
+    const arr=cprByMonth[m]||[]; if(!arr.length) return '—';
+    return ((arr.filter(r=>r.outcome==='نجاة').length/arr.length)*100).toFixed(1)+'%';
+  })]);
+  if (training?.items) {
+    sh7.push(['مؤشرات التدريب']);
+    const getV=(id,mi)=>training.items.find(r=>r.id===id)?.months?.[mi]??'';
+    sh7.push([7,'FU-006','نسبة العاملين المدربين على الدفاع المدني',...MONTHS_AR.map((_,mi)=>{
+      const t=getV('tr3',mi),d=getV('tr6',mi); if(t===''||d==='') return '—'; if(!Number(t)) return '—';
+      return (Number(d)/Number(t)*100).toFixed(1)+'%';
+    })]);
+    sh7.push([8,'FU-025','نسبة تدريب الأطباء على BLS',...MONTHS_AR.map((_,mi)=>{
+      const t=getV('tr1',mi),d=getV('tr4',mi); if(t===''||d==='') return '—'; if(!Number(t)) return '—';
+      return (Number(d)/Number(t)*100).toFixed(1)+'%';
+    })]);
+    sh7.push([9,'FU-026','نسبة تدريب التمريض على BLS',...MONTHS_AR.map((_,mi)=>{
+      const t=getV('tr2',mi),d=getV('tr5',mi); if(t===''||d==='') return '—'; if(!Number(t)) return '—';
+      return (Number(d)/Number(t)*100).toFixed(1)+'%';
+    })]);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh7), 'نتائج المؤشرات الشهرية');
+
+  const facName = facility?.name || 'PHC';
+  const today = new Date().toLocaleDateString('ar-EG');
+  XLSX.writeFile(wb, `تقرير_${facName}_${new Date().getFullYear()}.xlsx`);
+  toast('تم تصدير الملف ✅', 'success');
+}
+
+// ===== WHATSAPP SHARE =====
+async function shareWhatsApp() {
+  const fac = await dbGet('facility', 'main');
+  const [complaints, cpr, er] = await Promise.all([dbGetAll('complaints'), dbGetAll('cpr'), dbGetAll('er')]);
+  const name = fac?.name || 'المنشأة';
+  const month = new Date().toLocaleString('ar-EG', {month:'long', year:'numeric'});
+  const msg = `📊 *تقرير الرعاية الصحية الأولية*\n🏥 ${name}\n📅 ${month}\n\n` +
+    `📝 الشكاوى: ${complaints.length} (محلولة: ${complaints.filter(r=>r.resolution==='تم الحل').length})\n` +
+    `❤️ حالات الإفاقة: ${cpr.length} (نجاة: ${cpr.filter(r=>r.outcome==='نجاة').length})\n` +
+    `🚨 مرضى الطوارئ: ${er.length} (إعادة دخول: ${er.filter(r=>r.readmit).length})\n\n` +
+    `🔗 تم التصدير من نظام تقارير PHC`;
+  const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+
+// ===== TEMPLATE DOWNLOAD =====
+function downloadTemplate() {
+  const url = 'PHC_Data_Collection_Sheet_final.xlsx';
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'PHC_Data_Collection_Sheet_final.xlsx';
+  a.click();
+}
+
+// ===== SETTINGS =====
+async function clearAllData() {
+  if (!confirm('هل أنت متأكد من مسح جميع البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+  const stores = ['facility','clinics','complaints','training','cpr','er'];
+  for (const store of stores) {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).clear();
+    await new Promise(r => tx.oncomplete = r);
+  }
+  toast('تم مسح البيانات', '');
+  await loadAll();
+  document.getElementById('setupScreen').classList.add('show');
+}
+
+// ===== EXPORT MODAL =====
+function showExportModal() { openModal('exportModal'); }
+
+// ===== HELPERS =====
+function v(id) { return document.getElementById(id)?.value || ''; }
+function n(id) { return Number(document.getElementById(id)?.value) || 0; }
+function sv(id, val) { const el = document.getElementById(id); if (el) el.value = val || ''; }
+function getRadio(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+function setRadio(name, val) {
+  const els = document.querySelectorAll(`input[name="${name}"]`);
+  els.forEach(el => { el.checked = el.value === val; });
+}
+function calcTimeDiff(t1, t2) {
+  if (!t1 || !t2) return 0;
+  const [h1,m1] = t1.split(':').map(Number);
+  const [h2,m2] = t2.split(':').map(Number);
+  const diff = (h2*60+m2) - (h1*60+m1);
+  return diff > 0 ? diff : 0;
+}
+function getMonthLabel(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return '';
+  const yr = d.getFullYear().toString().slice(2);
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  return `${mo}-${yr}`;
+}
+function groupByMonth(arr, key) {
+  return arr.reduce((acc, r) => {
+    const m = r[key];
+    if (m) { if (!acc[m]) acc[m] = []; acc[m].push(r); }
+    return acc;
+  }, {});
+}
+
+// ===== BOOT =====
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
