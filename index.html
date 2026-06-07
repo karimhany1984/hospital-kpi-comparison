@@ -766,34 +766,30 @@ html, body {
   </div>
   <div class="card">
     <div class="field-group">
+      <label class="field-label">الإدارة الصحية <span class="required">*</span></label>
+      <select id="setup_admin" class="field-select" onchange="onSetupAdminChange()">
+        <option value="">اختر الإدارة الصحية...</option>
+      </select>
+    </div>
+    <div class="field-group">
       <label class="field-label">اسم المنشأة <span class="required">*</span></label>
-      <input id="setup_name" class="field-input" type="text" placeholder="مثال: وحدة صحية غرب">
+      <select id="setup_name" class="field-select" onchange="onSetupFacilityChange()">
+        <option value="">اختر المنشأة...</option>
+      </select>
     </div>
     <div class="row-2">
       <div class="field-group">
         <label class="field-label">كود المنشأة</label>
-        <input id="setup_code" class="field-input" type="text" placeholder="ASU-BDR-001">
+        <input id="setup_code" class="field-input" type="text" placeholder="يتم تعبئته تلقائياً" readonly style="background:var(--surface2);color:var(--primary);font-weight:700">
       </div>
       <div class="field-group">
         <label class="field-label">نوع المنشأة</label>
-        <select id="setup_type" class="field-select">
-          <option value="">اختر...</option>
-          <option>وحدة صحية</option>
-          <option>مركز صحي</option>
-          <option>مستوصف</option>
-          <option>عيادة PHC</option>
-        </select>
+        <input id="setup_type" class="field-input" type="text" placeholder="مثال: وحدة صحية، مركز صحي...">
       </div>
     </div>
-    <div class="row-2">
-      <div class="field-group">
-        <label class="field-label">الإدارة الصحية</label>
-        <input id="setup_admin" class="field-input" type="text" placeholder="">
-      </div>
-      <div class="field-group">
-        <label class="field-label">المديرية</label>
-        <input id="setup_dir" class="field-input" type="text" placeholder="">
-      </div>
+    <div class="field-group">
+      <label class="field-label">المديرية</label>
+      <input id="setup_dir" class="field-input" type="text" value="مديرية الشئون الصحية بالاسكندرية" readonly style="background:var(--surface2);color:var(--primary);font-weight:700">
     </div>
     <div class="field-group">
       <label class="field-label">العنوان</label>
@@ -809,28 +805,28 @@ html, body {
         <input id="setup_clinics" class="field-input" type="number" placeholder="0">
       </div>
     </div>
+    <div class="field-group">
+      <label class="field-label">إجمالي العاملين</label>
+      <input id="setup_staff" class="field-input" type="number" placeholder="يُحتسب تلقائياً" readonly style="background:var(--surface2);color:var(--primary);font-weight:700">
+    </div>
     <div class="row-2">
       <div class="field-group">
-        <label class="field-label">إجمالي العاملين</label>
-        <input id="setup_staff" class="field-input" type="number" placeholder="0">
-      </div>
-      <div class="field-group">
         <label class="field-label">الأطباء وأطباء الأسنان</label>
-        <input id="setup_docs" class="field-input" type="number" placeholder="0">
+        <input id="setup_docs" class="field-input" type="number" placeholder="0" oninput="calcSetupStaff()">
       </div>
-    </div>
-    <div class="row-3">
       <div class="field-group">
         <label class="field-label">التمريض</label>
-        <input id="setup_nurses" class="field-input" type="number" placeholder="0">
+        <input id="setup_nurses" class="field-input" type="number" placeholder="0" oninput="calcSetupStaff()">
       </div>
+    </div>
+    <div class="row-2">
       <div class="field-group">
         <label class="field-label">الصيادلة</label>
-        <input id="setup_pharm" class="field-input" type="number" placeholder="0">
+        <input id="setup_pharm" class="field-input" type="number" placeholder="0" oninput="calcSetupStaff()">
       </div>
       <div class="field-group">
         <label class="field-label">فئات أخرى</label>
-        <input id="setup_other" class="field-input" type="number" placeholder="0">
+        <input id="setup_other" class="field-input" type="number" placeholder="0" oninput="calcSetupStaff()">
       </div>
     </div>
     <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="saveSetup()">💾 حفظ والبدء</button>
@@ -858,6 +854,35 @@ html, body {
         <h2>مرحباً بك</h2>
         <p>سجّل البيانات وصدّر التقارير بسهولة</p>
         <div class="facility-name" id="banner_facility">—</div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:12px;opacity:0.85;font-weight:600">📅 شهر التقرير:</span>
+          <div style="display:flex;gap:6px">
+            <select id="report_month" style="background:var(--primary-dark);border:1.5px solid rgba(255,255,255,0.5);color:white;border-radius:8px;padding:5px 10px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer" onchange="saveReportMonth()">
+              <option value="" style="background:var(--primary-dark);color:white">اختر الشهر...</option>
+              <option value="1" style="background:var(--primary-dark);color:white">يناير</option>
+              <option value="2" style="background:var(--primary-dark);color:white">فبراير</option>
+              <option value="3" style="background:var(--primary-dark);color:white">مارس</option>
+              <option value="4" style="background:var(--primary-dark);color:white">أبريل</option>
+              <option value="5" style="background:var(--primary-dark);color:white">مايو</option>
+              <option value="6" style="background:var(--primary-dark);color:white">يونيو</option>
+              <option value="7" style="background:var(--primary-dark);color:white">يوليو</option>
+              <option value="8" style="background:var(--primary-dark);color:white">أغسطس</option>
+              <option value="9" style="background:var(--primary-dark);color:white">سبتمبر</option>
+              <option value="10" style="background:var(--primary-dark);color:white">أكتوبر</option>
+              <option value="11" style="background:var(--primary-dark);color:white">نوفمبر</option>
+              <option value="12" style="background:var(--primary-dark);color:white">ديسمبر</option>
+            </select>
+            <select id="report_year" style="background:var(--primary-dark);border:1.5px solid rgba(255,255,255,0.5);color:white;border-radius:8px;padding:5px 10px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer" onchange="onReportYearChange()">
+              <option value="" style="background:var(--primary-dark);color:white">السنة...</option>
+              <option value="2026" style="background:var(--primary-dark);color:white">2026</option>
+              <option value="2027" style="background:var(--primary-dark);color:white">2027</option>
+              <option value="2028" style="background:var(--primary-dark);color:white">2028</option>
+              <option value="2029" style="background:var(--primary-dark);color:white">2029</option>
+              <option value="2030" style="background:var(--primary-dark);color:white">2030</option>
+            </select>
+          </div>
+          <div id="report_month_badge" style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;display:none"></div>
+        </div>
       </div>
       <div class="stats-grid">
         <div class="stat-card">
@@ -924,34 +949,30 @@ html, body {
           <h2>بيانات المنشأة الصحية</h2>
         </div>
         <div class="field-group">
+          <label class="field-label">الإدارة الصحية</label>
+          <select id="fac_admin" class="field-select" onchange="onFacAdminChange()">
+            <option value="">اختر الإدارة الصحية...</option>
+          </select>
+        </div>
+        <div class="field-group">
           <label class="field-label">اسم المنشأة</label>
-          <input id="fac_name" class="field-input" type="text">
+          <select id="fac_name" class="field-select" onchange="onFacFacilityChange()">
+            <option value="">اختر المنشأة...</option>
+          </select>
         </div>
         <div class="row-2">
           <div class="field-group">
             <label class="field-label">كود المنشأة</label>
-            <input id="fac_code" class="field-input" type="text">
+            <input id="fac_code" class="field-input" type="text" placeholder="يتم تعبئته تلقائياً" readonly style="background:var(--surface2);color:var(--primary);font-weight:700">
           </div>
           <div class="field-group">
             <label class="field-label">نوع المنشأة</label>
-            <select id="fac_type" class="field-select">
-              <option value="">اختر...</option>
-              <option>وحدة صحية</option>
-              <option>مركز صحي</option>
-              <option>مستوصف</option>
-              <option>عيادة PHC</option>
-            </select>
+            <input id="fac_type" class="field-input" type="text" placeholder="مثال: وحدة صحية، مركز صحي...">
           </div>
         </div>
-        <div class="row-2">
-          <div class="field-group">
-            <label class="field-label">الإدارة الصحية</label>
-            <input id="fac_admin" class="field-input" type="text">
-          </div>
-          <div class="field-group">
-            <label class="field-label">المديرية</label>
-            <input id="fac_dir" class="field-input" type="text">
-          </div>
+        <div class="field-group">
+          <label class="field-label">المديرية</label>
+          <input id="fac_dir" class="field-input" type="text" value="مديرية الشئون الصحية بالاسكندرية" readonly style="background:var(--surface2);color:var(--primary);font-weight:700">
         </div>
         <div class="field-group">
           <label class="field-label">العنوان</label>
@@ -968,28 +989,28 @@ html, body {
             <input id="fac_nclinics" class="field-input" type="number" placeholder="0">
           </div>
         </div>
+        <div class="field-group">
+          <label class="field-label">إجمالي العاملين</label>
+          <input id="fac_nstaff" class="field-input" type="number" placeholder="يُحتسب تلقائياً" readonly style="background:var(--surface2);color:var(--primary);font-weight:700">
+        </div>
         <div class="row-2">
           <div class="field-group">
-            <label class="field-label">إجمالي العاملين</label>
-            <input id="fac_nstaff" class="field-input" type="number" placeholder="0">
-          </div>
-          <div class="field-group">
             <label class="field-label">الأطباء وأطباء الأسنان</label>
-            <input id="fac_docs" class="field-input" type="number" placeholder="0">
+            <input id="fac_docs" class="field-input" type="number" placeholder="0" oninput="calcFacStaff()">
           </div>
-        </div>
-        <div class="row-3">
           <div class="field-group">
             <label class="field-label">التمريض</label>
-            <input id="fac_nurses" class="field-input" type="number" placeholder="0">
+            <input id="fac_nurses" class="field-input" type="number" placeholder="0" oninput="calcFacStaff()">
           </div>
+        </div>
+        <div class="row-2">
           <div class="field-group">
             <label class="field-label">الصيادلة</label>
-            <input id="fac_pharm" class="field-input" type="number" placeholder="0">
+            <input id="fac_pharm" class="field-input" type="number" placeholder="0" oninput="calcFacStaff()">
           </div>
           <div class="field-group">
             <label class="field-label">فئات أخرى</label>
-            <input id="fac_other" class="field-input" type="number" placeholder="0">
+            <input id="fac_other" class="field-input" type="number" placeholder="0" oninput="calcFacStaff()">
           </div>
         </div>
         <button class="btn btn-primary btn-full" onclick="saveFacility()">💾 حفظ البيانات</button>
@@ -1431,6 +1452,25 @@ html, body {
   </div>
 </div>
 
+<!-- Year Change Confirm Modal -->
+<div class="modal-overlay" id="yearConfirmModal">
+  <div class="modal" style="max-width:400px;margin:0 auto">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:48px;margin-bottom:8px">⚠️</div>
+      <div class="modal-title" style="justify-content:center;margin-bottom:8px">تنبيه: تغيير السنة</div>
+      <p id="yearConfirmMsg" style="font-size:14px;color:var(--text-muted);line-height:1.7"></p>
+    </div>
+    <div style="background:rgba(239,68,68,0.08);border:1.5px solid var(--danger);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;text-align:center">
+      <p style="font-size:13px;color:var(--danger);font-weight:700">⚠️ لا يمكن التراجع عن هذا الإجراء</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-danger" style="flex:1" onclick="confirmYearChange()">✅ نعم، تغيير السنة</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="cancelYearChange()">❌ إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== DATABASE =====
 let db;
@@ -1439,6 +1479,141 @@ const DB_VERSION = 1;
 
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const MONTHS_EN = ['Jan-26','Feb-26','Mar-26','Apr-26','May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26'];
+
+// ===== FACILITIES DATA FROM EXCEL =====
+const FACILITIES_DATA = {"المنتزة": [{"name": "عياده المنتزه العلاجيه", "code": "ALX-MNZ-001"}, {"name": "عياده حي المنتزه", "code": "ALX-MNZ-002"}, {"name": "عياده حى درباله", "code": "ALX-MNZ-003"}, {"name": "عياده حى سيدى بشر", "code": "ALX-MNZ-004"}, {"name": "مركز الصحة المهنية", "code": "ALX-MNZ-005"}, {"name": "مركز طب أسرة أبو قير 3", "code": "ALX-MNZ-006"}, {"name": "مركز طب أسرة المندرة", "code": "ALX-MNZ-007"}, {"name": "مركز طب أسرة خورشيد (قرداحي)", "code": "ALX-MNZ-008"}, {"name": "مركز طب اسره مركز العمراوى", "code": "ALX-MNZ-009"}, {"name": "مستوصف صدر المعموره", "code": "ALX-MNZ-010"}, {"name": "مكتب صحه ابوقير", "code": "ALX-MNZ-011"}, {"name": "مكتب صحه المندره", "code": "ALX-MNZ-012"}, {"name": "مكتب صحه سيدى بشر", "code": "ALX-MNZ-013"}, {"name": "وحدة رعاية طفل طوسون", "code": "ALX-MNZ-014"}, {"name": "وحده طب اسرة المنتزة الريفية", "code": "ALX-MNZ-015"}, {"name": "وحده طب أسرة طوسون (الرحامنة)", "code": "ALX-MNZ-016"}, {"name": "وحده طب اسره ابوقير2", "code": "ALX-MNZ-017"}, {"name": "وحده طب اسره جون", "code": "ALX-MNZ-018"}, {"name": "وحده طب اسره درباله", "code": "ALX-MNZ-019"}, {"name": "وحده طب اسره سيدى بشر بحرى", "code": "ALX-MNZ-020"}, {"name": "وحده طب اسره محسن", "code": "ALX-MNZ-021"}], "شرق الاسكندرية": [{"name": "عياده جلديه باكوس", "code": "ALX-SHQ-001"}, {"name": "مركز أبحاث طب الأسنان", "code": "ALX-SHQ-002"}, {"name": "مركز طب أسرة أبيس 2", "code": "ALX-SHQ-003"}, {"name": "مركز طب أسرة السيوف", "code": "ALX-SHQ-004"}, {"name": "مركز طب أسرة باكوس", "code": "ALX-SHQ-005"}, {"name": "مركز طب أسرة حجر النواتية ( القلعة )", "code": "ALX-SHQ-006"}, {"name": "مركز طب أسرة سان ستيفانو", "code": "ALX-SHQ-007"}, {"name": "مركز طب أسرة سموحة", "code": "ALX-SHQ-008"}, {"name": "مركز طبي دنا (دنا القديمة )", "code": "ALX-SHQ-009"}, {"name": "مستوصف صدر باكوس", "code": "ALX-SHQ-010"}, {"name": "مكتب صحه ابو النواتير", "code": "ALX-SHQ-011"}, {"name": "مكتب صحه السيوف", "code": "ALX-SHQ-012"}, {"name": "مكتب صحه المطار", "code": "ALX-SHQ-013"}, {"name": "مكتب صحه باكوس", "code": "ALX-SHQ-014"}, {"name": "مكتب صحه حجر النواتيه", "code": "ALX-SHQ-015"}, {"name": "مكتب صحه سموحه", "code": "ALX-SHQ-016"}, {"name": "مكتب صحه سيدى جابر", "code": "ALX-SHQ-017"}, {"name": "مكتب صحه فلمنج", "code": "ALX-SHQ-018"}, {"name": "وحدة طب أسرة أبيس1", "code": "ALX-SHQ-019"}, {"name": "وحدة طب أسرة المطار", "code": "ALX-SHQ-020"}, {"name": "وحدة طب أسرة حجر النواتية (كيروسيز)", "code": "ALX-SHQ-021"}, {"name": "وحده طب أسرة أطفال الرمل", "code": "ALX-SHQ-022"}, {"name": "وحده طب أسرة دنا الوطنية", "code": "ALX-SHQ-023"}], "وسـط الاسكندرية": [{"name": "عياده جلديه محرم بك", "code": "ALX-WST-001"}, {"name": "مركز أبحاث اسنان محرم بك", "code": "ALX-WST-002"}, {"name": "مستوصف العطارين", "code": "ALX-WST-003"}, {"name": "مستوصف صدر محرم بك", "code": "ALX-WST-004"}, {"name": "مكتب صحة العطارين", "code": "ALX-WST-005"}, {"name": "مكتب صحة امبروزو", "code": "ALX-WST-006"}, {"name": "مكتب صحه الابراهيميه", "code": "ALX-WST-007"}, {"name": "مكتب صحه الحضره", "code": "ALX-WST-008"}, {"name": "مكتب صحه غربال", "code": "ALX-WST-009"}, {"name": "مكتب صحه محرم بك", "code": "ALX-WST-010"}, {"name": "وحدة رعاية طفل الحضرة", "code": "ALX-WST-011"}, {"name": "وحدة رعاية طفل محرم بك", "code": "ALX-WST-012"}, {"name": "وحدة طب أسرة أبيس 10", "code": "ALX-WST-013"}, {"name": "وحدة طب أسرة أبيس 7", "code": "ALX-WST-014"}, {"name": "وحدة طب أسرة أبيس 8", "code": "ALX-WST-015"}, {"name": "وحدة طب أسرة العطارين", "code": "ALX-WST-016"}, {"name": "وحدة طب أسرة أمبروزو", "code": "ALX-WST-017"}, {"name": "وحده طب أسرة الحضرة قبلي", "code": "ALX-WST-018"}], "غرب الاسكندرية": [{"name": "عيادة باب سدرة العلاجية", "code": "ALX-GRB-001"}, {"name": "عيادة جلدية كوم الشقافة", "code": "ALX-GRB-002"}, {"name": "عيادة جلدية مينا البصل", "code": "ALX-GRB-003"}, {"name": "مركز طب أسرة العامود", "code": "ALX-GRB-004"}, {"name": "مركز طب أسرة جنوب المتراس", "code": "ALX-GRB-005"}, {"name": "مركز طب أسرة شمال المتراس", "code": "ALX-GRB-006"}, {"name": "مركز طبي القباري", "code": "ALX-GRB-007"}, {"name": "مستوصف صدر القبارى", "code": "ALX-GRB-008"}, {"name": "مستوصف صدر كرموز", "code": "ALX-GRB-009"}, {"name": "مكتب صحه الجمهوريه", "code": "ALX-GRB-010"}, {"name": "مكتب صحه الورديان", "code": "ALX-GRB-011"}, {"name": "مكتب صحه غيط العنب", "code": "ALX-GRB-012"}, {"name": "مكتب صحه كرموز", "code": "ALX-GRB-013"}, {"name": "مكتب صحه مينا البصل", "code": "ALX-GRB-014"}, {"name": "وحدة طب أسرة الكارنتينا", "code": "ALX-GRB-015"}, {"name": "وحدة طب أسرة المتراس", "code": "ALX-GRB-016"}, {"name": "وحدة طب أسرة المفروزة شرق", "code": "ALX-GRB-017"}, {"name": "وحدة طب أسرة الورديان", "code": "ALX-GRB-018"}, {"name": "وحدة طب أسرة كرموز", "code": "ALX-GRB-019"}, {"name": "وحده طب أسرة ابن سهلان", "code": "ALX-GRB-020"}], "الجمرك": [{"name": "مركز طب أسرة الأمل", "code": "ALX-GMR-001"}, {"name": "مستوصف صدر الجمرك", "code": "ALX-GMR-002"}, {"name": "مكتب صحه الانفوشى", "code": "ALX-GMR-003"}, {"name": "مكتب صحه الجمرك", "code": "ALX-GMR-004"}, {"name": "مكتب صحه اللبان", "code": "ALX-GMR-005"}, {"name": "مكتب صحه المنشيه", "code": "ALX-GMR-006"}, {"name": "وحده طب اسره الجمرك", "code": "ALX-GMR-007"}, {"name": "وحده طب اسره الحجارى", "code": "ALX-GMR-008"}, {"name": "وحده طب اسره المنشيه 1", "code": "ALX-GMR-009"}, {"name": "وحده طب اسره المنشيه 2", "code": "ALX-GMR-010"}, {"name": "وحده طب اسره المنير", "code": "ALX-GMR-011"}], "العامرية": [{"name": "مركز طب اسره الجزائر", "code": "ALX-AMR-001"}, {"name": "مركز طب اسره الناصريه", "code": "ALX-AMR-002"}, {"name": "مركز طبي عبدالقادر", "code": "ALX-AMR-003"}, {"name": "مستعمره جذام العامريه", "code": "ALX-AMR-004"}, {"name": "مستوصف صدر العامرية", "code": "ALX-AMR-005"}, {"name": "مكتب صحه العامريه", "code": "ALX-AMR-006"}, {"name": "وحدة رعاية طفل العامرية", "code": "ALX-AMR-007"}, {"name": "وحده طب أسرة خالد بن الوليد", "code": "ALX-AMR-008"}, {"name": "وحده طب اسره ابو بسيسه", "code": "ALX-AMR-009"}, {"name": "وحده طب اسره ابو صير الساحلى", "code": "ALX-AMR-010"}, {"name": "وحده طب اسره الاسد", "code": "ALX-AMR-011"}, {"name": "وحده طب اسره البتروكيماويات", "code": "ALX-AMR-012"}, {"name": "وحده طب اسره البصره", "code": "ALX-AMR-013"}, {"name": "وحده طب اسره الجلاء", "code": "ALX-AMR-014"}, {"name": "وحده طب اسره العامريه", "code": "ALX-AMR-015"}, {"name": "وحده طب اسره العراق", "code": "ALX-AMR-016"}, {"name": "وحده طب اسره المجزر الالى", "code": "ALX-AMR-017"}, {"name": "وحده طب اسره الهواريه", "code": "ALX-AMR-018"}, {"name": "وحده طب اسره الوادى الجديد", "code": "ALX-AMR-019"}, {"name": "وحده طب اسره الوفاء", "code": "ALX-AMR-020"}, {"name": "وحده طب اسره الوقاد", "code": "ALX-AMR-021"}, {"name": "وحده طب اسره اليمن", "code": "ALX-AMR-022"}, {"name": "وحده طب اسره بغداد", "code": "ALX-AMR-023"}, {"name": "وحده طب اسره تبارك", "code": "ALX-AMR-024"}, {"name": "وحده طب اسره حارس", "code": "ALX-AMR-025"}, {"name": "وحده طب اسره سند3", "code": "ALX-AMR-026"}, {"name": "وحده طب اسره طيبه 2", "code": "ALX-AMR-027"}, {"name": "وحده طب اسره عرابى", "code": "ALX-AMR-028"}, {"name": "وحده طب اسره فلسطين", "code": "ALX-AMR-029"}, {"name": "وحده طب اسره كينج مريوط", "code": "ALX-AMR-030"}], "برج العرب": [{"name": "عيادات بهيج", "code": "ALX-BRA-001"}, {"name": "مركز طب اسره برج العرب الجديده", "code": "ALX-BRA-002"}, {"name": "وحدة تحيا مصر", "code": "ALX-BRA-003"}, {"name": "وحدة رعاية طفل الشروق", "code": "ALX-BRA-004"}, {"name": "وحدة طب أسرة أبو زهرة", "code": "ALX-BRA-005"}, {"name": "وحدة طب أسرة برج العرب القديمة", "code": "ALX-BRA-006"}, {"name": "وحده طب أسرة السناقرة", "code": "ALX-BRA-007"}, {"name": "وحده طب أسرة القرية المركزية", "code": "ALX-BRA-008"}, {"name": "وحده طب أسرة النهضة", "code": "ALX-BRA-009"}, {"name": "وحده طب أسرة بنجر ( 3 )", "code": "ALX-BRA-010"}, {"name": "وحده طب أسرة بنجر (14)", "code": "ALX-BRA-011"}, {"name": "وحده طب أسرة بنجر (19)", "code": "ALX-BRA-012"}, {"name": "وحده طب أسرة قرية (20)", "code": "ALX-BRA-013"}, {"name": "وحده طب اسره ابو صير", "code": "ALX-BRA-014"}, {"name": "وحده طب اسره التنميه", "code": "ALX-BRA-015"}, {"name": "وحده طب اسره الحى الثامن", "code": "ALX-BRA-016"}, {"name": "وحده طب اسره الحى الثانى", "code": "ALX-BRA-017"}, {"name": "وحده طب اسره الحى السابع", "code": "ALX-BRA-018"}, {"name": "وحده طب اسره العلا", "code": "ALX-BRA-019"}, {"name": "وحده طب اسره الغربانيات", "code": "ALX-BRA-020"}, {"name": "وحده طب اسره بنجر سكر ( 1 )", "code": "ALX-BRA-021"}, {"name": "وحده طب اسره بنجر سكر ( 2 )", "code": "ALX-BRA-022"}, {"name": "وحده طب اسره بنجر سكر ( 4 )", "code": "ALX-BRA-023"}, {"name": "وحده طب اسره بنجر سكر ( 5 )", "code": "ALX-BRA-024"}, {"name": "وحده طب اسره بنجر سكر ( 6 )", "code": "ALX-BRA-025"}, {"name": "وحده طب اسره بنجر سكر ( 7 )", "code": "ALX-BRA-026"}, {"name": "وحده طب اسره بهيج", "code": "ALX-BRA-027"}, {"name": "وحده طب اسره عبد الباسط", "code": "ALX-BRA-028"}, {"name": "وحده طب اسره قرية 18", "code": "ALX-BRA-029"}], "العجمى": [{"name": "مركز طب اسره الدخيله", "code": "ALX-AGM-001"}, {"name": "وحده طب أسرة الذراع البحري ك 21", "code": "ALX-AGM-002"}, {"name": "وحده طب أسرة الذراع البحري ك 26", "code": "ALX-AGM-003"}, {"name": "وحده طب أسرة العجمي", "code": "ALX-AGM-004"}, {"name": "وحده طب أسرة العجمي البحرية", "code": "ALX-AGM-005"}, {"name": "وحده طب أسرة الهانوفيل", "code": "ALX-AGM-006"}, {"name": "وحده طب أسرة سيدي كرير", "code": "ALX-AGM-007"}, {"name": "وحده طب أسرة وادي القمر", "code": "ALX-AGM-008"}, {"name": "وحده طب اسره البيطاش غرب", "code": "ALX-AGM-009"}]};
+
+function populateAdminDropdowns() {
+  const admins = Object.keys(FACILITIES_DATA);
+  ['setup_admin', 'fac_admin'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">اختر الإدارة الصحية...</option>';
+    admins.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; sel.appendChild(o); });
+  });
+}
+
+function populateFacilityDropdown(adminVal, selectId, nameId, codeId) {
+  const sel = document.getElementById(nameId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">اختر المنشأة...</option>';
+  const facilities = FACILITIES_DATA[adminVal] || [];
+  facilities.forEach(f => { const o = document.createElement('option'); o.value = f.name; o.dataset.code = f.code; o.textContent = f.name; sel.appendChild(o); });
+  document.getElementById(codeId).value = '';
+}
+
+function onSetupAdminChange() {
+  const admin = document.getElementById('setup_admin').value;
+  populateFacilityDropdown(admin, 'setup_admin', 'setup_name', 'setup_code');
+}
+function onSetupFacilityChange() {
+  const sel = document.getElementById('setup_name');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('setup_code').value = opt?.dataset?.code || '';
+}
+function onFacAdminChange() {
+  const admin = document.getElementById('fac_admin').value;
+  populateFacilityDropdown(admin, 'fac_admin', 'fac_name', 'fac_code');
+}
+function onFacFacilityChange() {
+  const sel = document.getElementById('fac_name');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('fac_code').value = opt?.dataset?.code || '';
+}
+
+function calcSetupStaff() {
+  const docs = Number(document.getElementById('setup_docs')?.value) || 0;
+  const nurses = Number(document.getElementById('setup_nurses')?.value) || 0;
+  const pharm = Number(document.getElementById('setup_pharm')?.value) || 0;
+  const other = Number(document.getElementById('setup_other')?.value) || 0;
+  document.getElementById('setup_staff').value = docs + nurses + pharm + other;
+}
+function calcFacStaff() {
+  const docs = Number(document.getElementById('fac_docs')?.value) || 0;
+  const nurses = Number(document.getElementById('fac_nurses')?.value) || 0;
+  const pharm = Number(document.getElementById('fac_pharm')?.value) || 0;
+  const other = Number(document.getElementById('fac_other')?.value) || 0;
+  document.getElementById('fac_nstaff').value = docs + nurses + pharm + other;
+}
+
+// ===== REPORT MONTH =====
+function saveReportMonth() {
+  const month = document.getElementById('report_month').value;
+  const year = document.getElementById('report_year').value;
+  localStorage.setItem('report_month', month);
+  if (year) localStorage.setItem('report_year', year);
+  updateReportMonthBadge();
+  // Reload clinics for the (possibly new) year
+  loadClinics();
+}
+
+let _pendingNewYear = '';
+let _pendingPrevYear = '';
+
+async function onReportYearChange() {
+  const newYear = document.getElementById('report_year').value;
+  const prevYear = localStorage.getItem('report_year') || '';
+
+  if (prevYear && newYear && newYear !== prevYear) {
+    // Show custom modal instead of confirm()
+    _pendingNewYear = newYear;
+    _pendingPrevYear = prevYear;
+    document.getElementById('yearConfirmMsg').innerHTML =
+      `أنت على وشك تغيير السنة من <strong>${prevYear}</strong> إلى <strong>${newYear}</strong>.<br><br>سيتم حذف بيانات تردد العيادات المسجلة للعام <strong>${prevYear}</strong> بشكل نهائي.`;
+    openModal('yearConfirmModal');
+    // Revert selector until user confirms
+    document.getElementById('report_year').value = prevYear;
+    return;
+  }
+  localStorage.setItem('report_year', newYear);
+  saveReportMonth();
+}
+
+async function confirmYearChange() {
+  closeModal('yearConfirmModal');
+  // Delete old year clinics data
+  try {
+    const tx = db.transaction('clinics', 'readwrite');
+    tx.objectStore('clinics').delete(`clinics_${_pendingPrevYear}`);
+    await new Promise(r => tx.oncomplete = r);
+  } catch(e) {}
+  // Apply new year
+  document.getElementById('report_year').value = _pendingNewYear;
+  localStorage.setItem('report_year', _pendingNewYear);
+  saveReportMonth();
+  toast(`تم حذف بيانات العيادات للعام ${_pendingPrevYear}`, 'error', 3500);
+  _pendingNewYear = '';
+  _pendingPrevYear = '';
+}
+
+function cancelYearChange() {
+  closeModal('yearConfirmModal');
+  // Keep old year in selector
+  document.getElementById('report_year').value = _pendingPrevYear || localStorage.getItem('report_year') || '';
+  _pendingNewYear = '';
+  _pendingPrevYear = '';
+}
+
+function loadReportMonth() {
+  const month = localStorage.getItem('report_month') || '';
+  const year = localStorage.getItem('report_year') || '';
+  const mSel = document.getElementById('report_month');
+  const ySel = document.getElementById('report_year');
+  if (mSel && month) mSel.value = month;
+  if (ySel && year) ySel.value = year;
+  updateReportMonthBadge();
+}
+function updateReportMonthBadge() {
+  const month = document.getElementById('report_month')?.value;
+  const year = document.getElementById('report_year')?.value;
+  const badge = document.getElementById('report_month_badge');
+  if (!badge) return;
+  const months = ['','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  if (month && year) {
+    badge.textContent = `${months[Number(month)]} ${year}`;
+    badge.style.display = 'inline-block';
+  } else { badge.style.display = 'none'; }
+}
 
 const CLINIC_TYPES = [
   {name:'طب الأسرة', monthlyFreq:''},
@@ -1522,6 +1697,8 @@ function dbGetAll(store) {
 async function init() {
   try {
     db = await openDB();
+    populateAdminDropdowns();
+    loadReportMonth();
     const fac = await dbGet('facility', 'main');
     if (!fac || !fac.name) {
       document.getElementById('setupScreen').classList.add('show');
@@ -1592,15 +1769,19 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 
 // ===== SETUP =====
 async function saveSetup() {
-  const name = document.getElementById('setup_name').value.trim();
-  if (!name) { toast('يرجى إدخال اسم المنشأة', 'error'); return; }
+  const nameSel = document.getElementById('setup_name');
+  const name = nameSel.value.trim();
+  if (!name) { toast('يرجى اختيار اسم المنشأة', 'error'); return; }
+  const docs = Number(document.getElementById('setup_docs')?.value) || 0;
+  const nurses = Number(document.getElementById('setup_nurses')?.value) || 0;
+  const pharm = Number(document.getElementById('setup_pharm')?.value) || 0;
+  const other = Number(document.getElementById('setup_other')?.value) || 0;
   const fac = {
     id: 'main',
     name, code: v('setup_code'), type: v('setup_type'),
-    admin: v('setup_admin'), dir: v('setup_dir'), addr: v('setup_addr'),
+    admin: v('setup_admin'), dir: 'مديرية الشئون الصحية بالاسكندرية', addr: v('setup_addr'),
     pop: n('setup_pop'), clinics: n('setup_clinics'),
-    staff: n('setup_staff'), docs: n('setup_docs'),
-    nurses: n('setup_nurses'), pharm: n('setup_pharm'), other: n('setup_other'),
+    staff: docs + nurses + pharm + other, docs, nurses, pharm, other,
   };
   await dbPut('facility', fac);
   document.getElementById('setupScreen').classList.remove('show');
@@ -1612,24 +1793,51 @@ async function saveSetup() {
 async function loadFacility() {
   const fac = await dbGet('facility', 'main');
   if (!fac) return;
-  const fields = ['name','code','type','admin','dir','addr','pop','clinics','staff','docs','nurses','pharm','other','nclinics','nstaff'];
-  // Map fac keys to form ids
-  const map = {name:'fac_name',code:'fac_code',type:'fac_type',admin:'fac_admin',dir:'fac_dir',addr:'fac_addr',
-    pop:'fac_pop',clinics:'fac_nclinics',staff:'fac_nstaff',docs:'fac_docs',nurses:'fac_nurses',pharm:'fac_pharm',other:'fac_other'};
-  for (const [k,id] of Object.entries(map)) {
-    const el = document.getElementById(id);
-    if (el && fac[k] !== undefined) el.value = fac[k];
+  // Set admin dropdown first, then populate facility list, then set facility
+  const adminSel = document.getElementById('fac_admin');
+  if (adminSel && fac.admin) {
+    adminSel.value = fac.admin;
+    populateFacilityDropdown(fac.admin, 'fac_admin', 'fac_name', 'fac_code');
+    // Now set facility select
+    const nameSel = document.getElementById('fac_name');
+    if (nameSel && fac.name) {
+      // Find matching option
+      for (let i = 0; i < nameSel.options.length; i++) {
+        if (nameSel.options[i].value === fac.name) { nameSel.selectedIndex = i; break; }
+      }
+    }
   }
+  const codeEl = document.getElementById('fac_code');
+  if (codeEl && fac.code) codeEl.value = fac.code;
+  const typeEl = document.getElementById('fac_type');
+  if (typeEl && fac.type) typeEl.value = fac.type;
+  const dirEl = document.getElementById('fac_dir');
+  if (dirEl) dirEl.value = 'مديرية الشئون الصحية بالاسكندرية';
+  const addrEl = document.getElementById('fac_addr');
+  if (addrEl && fac.addr) addrEl.value = fac.addr;
+  const popEl = document.getElementById('fac_pop');
+  if (popEl && fac.pop !== undefined) popEl.value = fac.pop;
+  const nclinicsEl = document.getElementById('fac_nclinics');
+  if (nclinicsEl && fac.clinics !== undefined) nclinicsEl.value = fac.clinics;
+  ['docs','nurses','pharm','other'].forEach(k => {
+    const el = document.getElementById('fac_' + k);
+    if (el && fac[k] !== undefined) el.value = fac[k];
+  });
+  const nstaffEl = document.getElementById('fac_nstaff');
+  if (nstaffEl) nstaffEl.value = (Number(fac.docs)||0)+(Number(fac.nurses)||0)+(Number(fac.pharm)||0)+(Number(fac.other)||0);
   document.getElementById('banner_facility').textContent = fac.name || '—';
 }
 
 async function saveFacility() {
+  const nameSel = document.getElementById('fac_name');
+  const name = nameSel?.value || v('fac_name');
+  const docs = n('fac_docs'), nurses = n('fac_nurses'), pharm = n('fac_pharm'), other = n('fac_other');
   const fac = {
     id:'main',
-    name: v('fac_name'), code: v('fac_code'), type: v('fac_type'),
-    admin: v('fac_admin'), dir: v('fac_dir'), addr: v('fac_addr'),
-    pop: n('fac_pop'), clinics: n('fac_nclinics'), staff: n('fac_nstaff'),
-    docs: n('fac_docs'), nurses: n('fac_nurses'), pharm: n('fac_pharm'), other: n('fac_other'),
+    name, code: v('fac_code'), type: v('fac_type'),
+    admin: v('fac_admin'), dir: 'مديرية الشئون الصحية بالاسكندرية', addr: v('fac_addr'),
+    pop: n('fac_pop'), clinics: n('fac_nclinics'), staff: docs + nurses + pharm + other,
+    docs, nurses, pharm, other,
   };
   await dbPut('facility', fac);
   document.getElementById('banner_facility').textContent = fac.name || '—';
@@ -1640,16 +1848,16 @@ async function saveFacility() {
 function buildClinicsTable() {
   const head = document.getElementById('clinicsTableHead');
   const body = document.getElementById('clinicsTableBody');
-  // Header
-  let htr = '<tr><th>العيادة</th><th>التردد الشهري</th>';
-  MONTHS_AR.forEach((m,i) => htr += `<th>${m.slice(0,3)}</th>`);
+  // Header — no frequency column, full month names
+  let htr = '<tr><th>العيادة</th>';
+  MONTHS_AR.forEach(m => htr += `<th>${m}</th>`);
   htr += '</tr>';
   head.innerHTML = htr;
   // Body
   body.innerHTML = CLINIC_TYPES.map((c,ci) => {
-    let row = `<tr><td>${c.name}</td><td><input type="text" id="cl_freq_${ci}" style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:12px;text-align:center" placeholder="${c.monthlyFreq||''}"></td>`;
+    let row = `<tr><td>${c.name}</td>`;
     MONTHS_AR.forEach((_,mi) => {
-      row += `<td><input type="number" id="cl_${ci}_${mi}" style="width:56px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:12px;text-align:center" placeholder="0" min="0"></td>`;
+      row += `<td><input type="number" id="cl_${ci}_${mi}" style="width:56px;padding:4px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:12px;text-align:center" placeholder="0" min="0" onchange="saveClinicsAuto()"></td>`;
     });
     row += '</tr>';
     return row;
@@ -1658,11 +1866,11 @@ function buildClinicsTable() {
 
 async function loadClinics() {
   buildClinicsTable();
-  const data = await dbGet('clinics', 'main');
+  const year = localStorage.getItem('report_year') || '';
+  const key = year ? `clinics_${year}` : 'main';
+  const data = await dbGet('clinics', key);
   if (!data || !data.rows) return;
   data.rows.forEach((row, ci) => {
-    const freqEl = document.getElementById(`cl_freq_${ci}`);
-    if (freqEl && row.freq !== undefined) freqEl.value = row.freq;
     if (row.months) row.months.forEach((val, mi) => {
       const el = document.getElementById(`cl_${ci}_${mi}`);
       if (el) el.value = val || '';
@@ -1670,16 +1878,22 @@ async function loadClinics() {
   });
 }
 
-async function saveClinics() {
+async function saveClinicsAuto() {
+  // Auto-save silently on each input change
+  const year = localStorage.getItem('report_year') || '';
+  const key = year ? `clinics_${year}` : 'main';
   const rows = CLINIC_TYPES.map((c, ci) => {
-    const freq = document.getElementById(`cl_freq_${ci}`)?.value || '';
     const months = MONTHS_AR.map((_,mi) => {
-      const v = document.getElementById(`cl_${ci}_${mi}`)?.value;
-      return v !== '' && v !== undefined ? Number(v) : '';
+      const val = document.getElementById(`cl_${ci}_${mi}`)?.value;
+      return val !== '' && val !== undefined ? Number(val) : '';
     });
-    return {name: c.name, freq, months};
+    return {name: c.name, months};
   });
-  await dbPut('clinics', {id:'main', rows});
+  await dbPut('clinics', {id: key, rows});
+}
+
+async function saveClinics() {
+  await saveClinicsAuto();
   toast('تم حفظ بيانات العيادات ✅', 'success');
 }
 
@@ -2091,8 +2305,10 @@ async function updateHomeStats() {
 
 // ===== EXPORT EXCEL =====
 async function exportExcel() {
+  const year = localStorage.getItem('report_year') || '';
+  const clinicsKey = year ? `clinics_${year}` : 'main';
   const [facility, clinics, complaints, training, cpr, er] = await Promise.all([
-    dbGet('facility','main'), dbGet('clinics','main'),
+    dbGet('facility','main'), dbGet('clinics', clinicsKey),
     dbGetAll('complaints'), dbGet('training','main'),
     dbGetAll('cpr'), dbGetAll('er')
   ]);
@@ -2116,11 +2332,11 @@ async function exportExcel() {
   sh1.push(['عدد الصيادلة', facility?.pharm || '']);
   sh1.push(['عدد الفئات الاخرى', facility?.other || '']);
   sh1.push([]);
-  const clinicHeader = ['تخصصات العيادات', 'تردد العيادة الشهري', ...MONTHS_EN];
+  const clinicHeader = ['تخصصات العيادات', ...MONTHS_EN];
   sh1.push(clinicHeader);
   CLINIC_TYPES.forEach((c,ci) => {
     const row = clinics?.rows?.[ci];
-    sh1.push(['', c.name, row?.freq || '', ...MONTHS_EN.map((_,mi) => row?.months?.[mi] || '')]);
+    sh1.push([c.name, ...MONTHS_EN.map((_,mi) => row?.months?.[mi] || '')]);
   });
   const ws1 = XLSX.utils.aoa_to_sheet(sh1);
   XLSX.utils.book_append_sheet(wb, ws1, 'بيانات المنشأة و تردد العيادات');
@@ -2250,6 +2466,7 @@ async function clearAllData() {
   }
   toast('تم مسح البيانات', '');
   await loadAll();
+  populateAdminDropdowns();
   document.getElementById('setupScreen').classList.add('show');
 }
 
