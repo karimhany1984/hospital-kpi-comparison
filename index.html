@@ -1212,74 +1212,54 @@ html, body {
     <div class="row-2">
       <div class="field-group">
         <label class="field-label">تاريخ الشكوى <span class="required">*</span></label>
-        <input id="comp_date" class="field-input" type="date">
+        <input id="comp_date" class="field-input" type="date" onchange="onCompDateChange()">
       </div>
       <div class="field-group">
         <label class="field-label">نوع الشكوى <span class="required">*</span></label>
-        <select id="comp_type" class="field-select">
+        <select id="comp_cat" class="field-select">
           <option value="">اختر...</option>
-          <option>توافر الأدوية</option>
+          <option>الاغذية والمطبخ</option>
+          <option>ادارية</option>
+          <option>اجراءات الدخول</option>
+          <option>توافر الادوية</option>
           <option>معاملة الفريق الطبي</option>
           <option>وقت الانتظار</option>
           <option>اسعار الخدمات</option>
           <option>حقوق المرضى</option>
-          <option>الأمن والنظافة</option>
+          <option>الامن والنظافة</option>
           <option>التحويل والاحالة</option>
           <option>الفحوصات الطبية(اشعة/ معمل)</option>
           <option>عدم توافر الخدمة</option>
           <option>الاعطال و الصيانة</option>
-          <option>أخرى</option>
+          <option>اخرى</option>
         </select>
       </div>
-    </div>
-    <div class="field-group">
-      <label class="field-label">تصنيف الشكوى</label>
-      <select id="comp_cat" class="field-select">
-        <option value="">اختر...</option>
-        <option>الاغذية والمطبخ</option>
-        <option>إدارية</option>
-        <option>إجراءات الدخول</option>
-        <option>توافر الأدوية</option>
-        <option>معاملة الفريق الطبي</option>
-        <option>وقت الانتظار</option>
-        <option>اسعار الخدمات</option>
-        <option>حقوق المرضى</option>
-        <option>الأمن والنظافة</option>
-        <option>التحويل والاحالة</option>
-        <option>الفحوصات الطبية(اشعة/ معمل)</option>
-        <option>عدم توافر الخدمة</option>
-        <option>الاعطال و الصيانة</option>
-        <option>أخرى</option>
-      </select>
     </div>
     <div class="field-group">
       <label class="field-label">ملخص الشكوى</label>
       <textarea id="comp_summary" class="field-textarea" placeholder="اكتب ملخص الشكوى..."></textarea>
     </div>
+    <!-- الحل — يتحدد تلقائياً -->
     <div class="field-group">
       <label class="field-label">الحل</label>
-      <select id="comp_resolution" class="field-select">
-        <option value="">اختر...</option>
+      <select id="comp_resolution" class="field-select" style="background:var(--surface2);color:var(--primary);font-weight:700" disabled>
+        <option value="">يتحدد تلقائياً...</option>
         <option>تم الحل</option>
         <option>جاري الحل</option>
-        <option>لم يتم الحل</option>
       </select>
     </div>
-    <div class="row-2">
-      <div class="field-group">
-        <label class="field-label">تاريخ الحل</label>
-        <input id="comp_resolve_date" class="field-input" type="date">
-      </div>
-      <div class="field-group">
-        <label class="field-label">التغذية الراجعة</label>
-        <select id="comp_feedback" class="field-select">
-          <option value="">اختر...</option>
-          <option>تم التغذية الراجعة</option>
-          <option>لم يتم التغذية الراجعة</option>
-          <option>NA</option>
-        </select>
-      </div>
+    <!-- تاريخ الحل -->
+    <div class="field-group">
+      <label class="field-label">تاريخ الحل</label>
+      <input id="comp_resolve_date" class="field-input" type="date" onchange="onCompResolveDateChange()">
+      <div id="comp_resolve_date_err" style="font-size:12px;color:var(--danger);margin-top:4px;display:none">⚠️ تاريخ الحل لا يمكن أن يكون قبل تاريخ الشكوى</div>
     </div>
+    <!-- زمن الحل — تلقائي -->
+    <div class="field-group">
+      <label class="field-label">زمن الحل (يوم)</label>
+      <input id="comp_days" class="field-input" type="number" readonly style="background:var(--surface2);color:var(--primary);font-weight:700" placeholder="يُحتسب تلقائياً">
+    </div>
+    <!-- حل فوري — تلقائي -->
     <div class="field-group">
       <label class="field-label">حل فوري؟</label>
       <div class="radio-group">
@@ -1287,12 +1267,28 @@ html, body {
         <div class="radio-opt"><input type="radio" name="comp_immediate" id="comp_imm_no" value="لا" checked><label for="comp_imm_no" class="no">❌ لا</label></div>
       </div>
     </div>
+    <!-- حل خلال 72 ساعة — تلقائي -->
     <div class="field-group">
       <label class="field-label">حل خلال 72 ساعة؟</label>
       <div class="radio-group">
         <div class="radio-opt"><input type="radio" name="comp_72h" id="comp_72_yes" value="نعم"><label for="comp_72_yes" class="yes">✅ نعم</label></div>
         <div class="radio-opt"><input type="radio" name="comp_72h" id="comp_72_no" value="لا" checked><label for="comp_72_no" class="no">❌ لا</label></div>
       </div>
+    </div>
+    <!-- التغذية الراجعة -->
+    <div class="field-group">
+      <label class="field-label">التغذية الراجعة</label>
+      <select id="comp_feedback" class="field-select" onchange="onFeedbackChange()">
+        <option value="">اختر...</option>
+        <option>تم التغذية الراجعة</option>
+        <option>لم يتم التغذية الراجعة</option>
+        <option>NA</option>
+      </select>
+    </div>
+    <!-- تاريخ التغذية الراجعة — يظهر فقط عند اختيار "تم" -->
+    <div class="field-group" id="comp_feedback_date_group" style="display:none">
+      <label class="field-label">تاريخ التغذية الراجعة</label>
+      <input id="comp_feedback_date" class="field-input" type="date">
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn btn-primary" style="flex:1" onclick="saveComplaint()">💾 حفظ</button>
@@ -1898,17 +1894,98 @@ async function saveClinics() {
 }
 
 // ===== COMPLAINTS =====
+function compResetAutoFields() {
+  document.getElementById('comp_resolution').value = '';
+  document.getElementById('comp_days').value = '';
+  document.getElementById('comp_imm_no').checked = true;
+  document.getElementById('comp_72_no').checked = true;
+  document.getElementById('comp_resolve_date_err').style.display = 'none';
+}
+
+function onCompDateChange() {
+  const d = document.getElementById('comp_date').value;
+  const r = document.getElementById('comp_resolve_date').value;
+  if (d) {
+    // If no resolve date yet → جاري الحل
+    if (!r) {
+      document.getElementById('comp_resolution').value = 'جاري الحل';
+      document.getElementById('comp_days').value = '0';
+    } else {
+      // Re-validate resolve date against new complaint date
+      onCompResolveDateChange();
+    }
+    // Set min on resolve date
+    document.getElementById('comp_resolve_date').min = d;
+  }
+}
+
+function onCompResolveDateChange() {
+  const d = document.getElementById('comp_date').value;
+  const r = document.getElementById('comp_resolve_date').value;
+  const errEl = document.getElementById('comp_resolve_date_err');
+  if (!r) {
+    // No resolve date
+    if (d) {
+      document.getElementById('comp_resolution').value = 'جاري الحل';
+      document.getElementById('comp_days').value = '0';
+      document.getElementById('comp_imm_no').checked = true;
+      document.getElementById('comp_72_no').checked = true;
+    }
+    errEl.style.display = 'none';
+    return;
+  }
+  if (d && r < d) {
+    errEl.style.display = 'block';
+    document.getElementById('comp_resolve_date').value = '';
+    return;
+  }
+  errEl.style.display = 'none';
+  // Calculate days
+  const days = d && r ? Math.round((new Date(r) - new Date(d)) / 86400000) : 0;
+  document.getElementById('comp_days').value = days;
+  // Auto resolution
+  document.getElementById('comp_resolution').value = 'تم الحل';
+  // حل فوري: same day
+  if (days === 0) {
+    document.getElementById('comp_imm_yes').checked = true;
+    document.getElementById('comp_imm_no').checked = false;
+  } else {
+    document.getElementById('comp_imm_no').checked = true;
+    document.getElementById('comp_imm_yes').checked = false;
+  }
+  // حل خلال 72 ساعة: days <= 3
+  if (days <= 3) {
+    document.getElementById('comp_72_yes').checked = true;
+    document.getElementById('comp_72_no').checked = false;
+  } else {
+    document.getElementById('comp_72_no').checked = true;
+    document.getElementById('comp_72_yes').checked = false;
+  }
+}
+
+function onFeedbackChange() {
+  const val = document.getElementById('comp_feedback').value;
+  const grp = document.getElementById('comp_feedback_date_group');
+  grp.style.display = val === 'تم التغذية الراجعة' ? 'block' : 'none';
+  if (val !== 'تم التغذية الراجعة') document.getElementById('comp_feedback_date').value = '';
+}
+
 function openComplaintModal(id) {
   document.getElementById('comp_edit_id').value = id || '';
   document.getElementById('complaintModalTitle').textContent = id ? 'تعديل الشكوى' : 'إضافة شكوى جديدة';
   if (!id) {
-    ['comp_date','comp_type','comp_cat','comp_summary','comp_resolution','comp_resolve_date','comp_feedback'].forEach(i => {
+    ['comp_cat','comp_summary','comp_resolve_date','comp_feedback','comp_feedback_date'].forEach(i => {
       const el = document.getElementById(i);
       if (el) el.value = '';
     });
-    document.getElementById('comp_imm_no').checked = true;
-    document.getElementById('comp_72_no').checked = true;
-    document.getElementById('comp_date').value = new Date().toISOString().split('T')[0];
+    compResetAutoFields();
+    document.getElementById('comp_feedback_date_group').style.display = 'none';
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('comp_date').value = today;
+    document.getElementById('comp_resolve_date').min = today;
+    // Trigger auto: جاري الحل
+    document.getElementById('comp_resolution').value = 'جاري الحل';
+    document.getElementById('comp_days').value = '0';
   }
   openModal('complaintModal');
 }
@@ -1920,26 +1997,40 @@ async function openComplaintEdit(id) {
   document.getElementById('comp_edit_id').value = id;
   document.getElementById('complaintModalTitle').textContent = 'تعديل الشكوى';
   sv('comp_date', rec.date);
-  sv('comp_type', rec.type);
-  sv('comp_cat', rec.category);
+  sv('comp_cat', rec.category || rec.type);
   sv('comp_summary', rec.summary);
-  sv('comp_resolution', rec.resolution);
+  document.getElementById('comp_resolution').value = rec.resolution || '';
   sv('comp_resolve_date', rec.resolve_date);
-  sv('comp_feedback', rec.feedback);
+  if (rec.date) document.getElementById('comp_resolve_date').min = rec.date;
+  document.getElementById('comp_days').value = rec.days_to_resolve ?? '';
   setRadio('comp_immediate', rec.immediate || 'لا');
   setRadio('comp_72h', rec.hr72 || 'لا');
+  sv('comp_feedback', rec.feedback);
+  sv('comp_feedback_date', rec.feedback_date || '');
+  document.getElementById('comp_feedback_date_group').style.display =
+    rec.feedback === 'تم التغذية الراجعة' ? 'block' : 'none';
+  document.getElementById('comp_resolve_date_err').style.display = 'none';
   openModal('complaintModal');
 }
 
 async function saveComplaint() {
   const date = v('comp_date');
-  const type = v('comp_type');
+  const type = v('comp_cat');
   if (!date || !type) { toast('يرجى إدخال التاريخ ونوع الشكوى', 'error'); return; }
+  // Validate resolve date
+  const resolveDate = v('comp_resolve_date');
+  if (resolveDate && resolveDate < date) {
+    toast('تاريخ الحل لا يمكن أن يكون قبل تاريخ الشكوى', 'error'); return;
+  }
+  const days = resolveDate ? Math.round((new Date(resolveDate) - new Date(date)) / 86400000) : 0;
   const editId = document.getElementById('comp_edit_id').value;
   const rec = {
-    date, type, category: v('comp_cat'), summary: v('comp_summary'),
-    resolution: v('comp_resolution'), resolve_date: v('comp_resolve_date'),
+    date, type, category: type, summary: v('comp_summary'),
+    resolution: document.getElementById('comp_resolution').value,
+    resolve_date: resolveDate,
+    days_to_resolve: days,
     feedback: v('comp_feedback'),
+    feedback_date: v('comp_feedback_date'),
     immediate: getRadio('comp_immediate'),
     hr72: getRadio('comp_72h'),
     month: getMonthLabel(date),
