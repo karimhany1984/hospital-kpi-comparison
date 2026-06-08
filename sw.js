@@ -1,5 +1,5 @@
 // PHC Webapp Service Worker
-const CACHE_NAME = 'phc-webapp-v31';
+const CACHE_NAME = 'phc-webapp-v32';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
