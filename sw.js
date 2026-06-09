@@ -1,5 +1,6 @@
 // PHC Webapp Service Worker
-const CACHE_NAME = 'phc-webapp-v32';
+const CACHE_NAME = 'phc-webapp-v33';
+const REPO_BASE = 'https://karimhany1984.github.io/PHC-documentation';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -40,34 +41,43 @@ self.addEventListener('activate', event => {
 // Fetch: cache-first for static, network-first for dynamic
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-
-  // Skip non-GET requests
   if (event.request.method !== 'GET') return;
-
-  // Skip chrome-extension and other non-http
   if (!url.protocol.startsWith('http')) return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-
       return fetch(event.request).then(response => {
-        // Don't cache bad responses
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
         }
-        // Cache successful responses
         const responseClone = response.clone();
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, responseClone);
         });
         return response;
       }).catch(() => {
-        // Offline fallback
         if (event.request.mode === 'navigate') {
           return caches.match('/index.html');
         }
       });
     })
   );
+});
+
+// ===== UPDATE MESSAGE HANDLER =====
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'FORCE_UPDATE') {
+    // Delete ALL caches so fresh files are fetched
+    event.waitUntil(
+      caches.keys().then(keys =>
+        Promise.all(keys.map(key => caches.delete(key)))
+      ).then(() => {
+        // Notify all clients update is done
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => client.postMessage({ type: 'UPDATE_DONE' }));
+        });
+      })
+    );
+  }
 });
