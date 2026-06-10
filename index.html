@@ -1748,12 +1748,17 @@ async function loadAll() {
 }
 
 // ===== TOAST =====
+let _toastTimer = null;
 function toast(msg, type='', dur=2500) {
   const el = document.getElementById('toast');
+  if (!el) return;
+  clearTimeout(_toastTimer);
   el.textContent = msg;
   el.className = type ? `show ${type}` : 'show';
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.className = '', dur);
+  _toastTimer = setTimeout(() => {
+    el.className = '';
+    el.textContent = '';
+  }, dur);
 }
 
 // ===== PAGE NAVIGATION =====
@@ -2817,7 +2822,7 @@ async function applyUpdate() {
   closeModal('updateModal');
   document.getElementById('updateBtnText').textContent = '⏳ جاري التحديث...';
   document.getElementById('updateBtn').disabled = true;
-  showUpdateStatus('⏳ جاري تنزيل التحديث...', 'var(--primary)');
+  showUpdateStatus('⏳ جاري تنزيل التحديث...', 'var(--primary)', 0);
   try {
     // 1. Tell SW to clear all caches
     if (navigator.serviceWorker?.controller) {
@@ -2849,12 +2854,14 @@ if (navigator.serviceWorker) {
   });
 }
 
-function showUpdateStatus(msg, color) {
+function showUpdateStatus(msg, color, dur=3000) {
   const el = document.getElementById('updateStatusMsg');
   if (!el) return;
   el.textContent = msg;
   el.style.color = color;
   el.style.display = 'block';
+  clearTimeout(el._t);
+  if (dur) el._t = setTimeout(() => { el.style.display = 'none'; }, dur);
 }
 function hideUpdateStatus() {
   const el = document.getElementById('updateStatusMsg');
