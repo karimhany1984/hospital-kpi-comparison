@@ -1082,6 +1082,7 @@ html, body {
     <div class="page" id="page-cpr">
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <button class="btn btn-danger" style="flex:1" onclick="openCprModal()">➕ إضافة حالة</button>
+        <button class="btn btn-outline" style="flex:1;border-color:var(--primary);color:var(--primary)" onclick="openDrillModal()">🎯 مناورة إفاقة</button>
       </div>
       <div class="stats-grid">
         <div class="stat-card red">
@@ -1107,6 +1108,13 @@ html, body {
           <h2>سجل حالات الإفاقة القلبية</h2>
         </div>
         <div id="cprList"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(10,79,110,0.1)">🎯</div>
+          <h2>سجل مناورات الإفاقة</h2>
+        </div>
+        <div id="drillList"></div>
       </div>
     </div>
 
@@ -1343,7 +1351,7 @@ html, body {
     <div class="row-2">
       <div class="field-group">
         <label class="field-label">وقت إعلان Code Blue</label>
-        <input id="cpr_code_time" class="field-input" type="time">
+        <input id="cpr_code_time" class="field-input" type="time" onchange="calcCprResponse()">
       </div>
       <div class="field-group">
         <label class="field-label">وقت بداية CPR</label>
@@ -1353,7 +1361,7 @@ html, body {
     <div class="row-2">
       <div class="field-group">
         <label class="field-label">وقت وصول الفريق كاملاً</label>
-        <input id="cpr_team_time" class="field-input" type="time">
+        <input id="cpr_team_time" class="field-input" type="time" onchange="calcCprResponse()">
       </div>
       <div class="field-group">
         <label class="field-label">وقت انتهاء CPR</label>
@@ -1362,19 +1370,21 @@ html, body {
     </div>
     <div class="row-2">
       <div class="field-group">
+        <label class="field-label">زمن الاستجابة (دقيقة)</label>
+        <input id="cpr_response_display" class="field-input" type="text" readonly placeholder="يُحتسب تلقائياً" style="background:var(--surface2);color:var(--primary);font-weight:700">
+      </div>
+      <div class="field-group">
         <label class="field-label">عدد دورات CPR</label>
         <input id="cpr_cycles" class="field-input" type="number" placeholder="0">
       </div>
-      <div class="field-group">
-        <label class="field-label">نتيجة الإنعاش</label>
-        <select id="cpr_outcome" class="field-select">
-          <option value="">اختر...</option>
-          <option>نجاة</option>
-          <option>وفاة</option>
-          <option>تحسن</option>
-          <option>نقل/إحالة</option>
-        </select>
-      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">نتيجة الإنعاش</label>
+      <select id="cpr_outcome" class="field-select">
+        <option value="">اختر...</option>
+        <option>نجاة</option>
+        <option>وفاة</option>
+      </select>
     </div>
     <div class="field-group">
       <label class="field-label">نموذج التوثيق مكتمل؟</label>
@@ -1386,6 +1396,63 @@ html, body {
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn btn-danger" style="flex:1" onclick="saveCpr()">💾 حفظ</button>
       <button class="btn btn-ghost" style="flex:1" onclick="closeModal('cprModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- CPR Drill Modal -->
+<div class="modal-overlay" id="cprDrillModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎯 <span id="cprDrillModalTitle">إضافة مناورة إفاقة قلبية</span></div>
+    <input type="hidden" id="drill_edit_id">
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">الاسم <span class="required">*</span></label>
+        <input id="drill_name" class="field-input" type="text" placeholder="اسم المناورة أو المسؤول">
+      </div>
+      <div class="field-group">
+        <label class="field-label">التاريخ</label>
+        <input id="drill_date" class="field-input" type="date">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">مكان الحدوث</label>
+      <select id="drill_location" class="field-select">
+        <option value="">اختر...</option>
+        <option>وحدة رعاية أولية</option>
+        <option>الطوارئ والاستقبال</option>
+        <option>الأقسام الداخلية</option>
+        <option>الرعاية المركزة</option>
+        <option>الحضانات</option>
+        <option>الغسيل الكلوي</option>
+        <option>العمليات</option>
+        <option>أخرى</option>
+      </select>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">وقت إعلان Code Blue</label>
+        <input id="drill_code_time" class="field-input" type="time" onchange="calcDrillResponse()">
+      </div>
+      <div class="field-group">
+        <label class="field-label">وقت بداية CPR</label>
+        <input id="drill_start_time" class="field-input" type="time">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field-group">
+        <label class="field-label">وقت وصول الفريق كاملاً</label>
+        <input id="drill_team_time" class="field-input" type="time" onchange="calcDrillResponse()">
+      </div>
+      <div class="field-group">
+        <label class="field-label">زمن الاستجابة (دقيقة)</label>
+        <input id="drill_response_display" class="field-input" type="text" readonly placeholder="يُحتسب تلقائياً" style="background:var(--surface2);color:var(--primary);font-weight:700">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-danger" style="flex:1" onclick="saveDrill()">💾 حفظ</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('cprDrillModal')">إلغاء</button>
     </div>
   </div>
 </div>
@@ -1496,7 +1563,7 @@ html, body {
 // ===== DATABASE =====
 let db;
 const DB_NAME = 'PHC_DB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const MONTHS_EN = ['Jan-26','Feb-26','Mar-26','Apr-26','May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26'];
@@ -1665,6 +1732,7 @@ function openDB() {
       if (!db.objectStoreNames.contains('complaints')) db.createObjectStore('complaints', {keyPath:'id', autoIncrement:true});
       if (!db.objectStoreNames.contains('training')) db.createObjectStore('training', {keyPath:'id'});
       if (!db.objectStoreNames.contains('cpr')) db.createObjectStore('cpr', {keyPath:'id', autoIncrement:true});
+      if (!db.objectStoreNames.contains('drills')) db.createObjectStore('drills', {keyPath:'id', autoIncrement:true});
       if (!db.objectStoreNames.contains('er')) db.createObjectStore('er', {keyPath:'id', autoIncrement:true});
     };
     req.onsuccess = (e) => resolve(e.target.result);
@@ -2258,13 +2326,38 @@ async function saveTraining() {
 }
 
 // ===== CPR =====
+// ===== CPR =====
+function calcTimeDiff(t1, t2) {
+  if (!t1 || !t2) return 0;
+  const [h1,m1] = t1.split(':').map(Number);
+  const [h2,m2] = t2.split(':').map(Number);
+  const diff = (h2*60+m2) - (h1*60+m1);
+  return diff > 0 ? diff : 0;
+}
+
+function calcCprResponse() {
+  const code = v('cpr_code_time');
+  const team = v('cpr_team_time');
+  const mins = calcTimeDiff(code, team);
+  const el = document.getElementById('cpr_response_display');
+  if (el) el.value = (code && team) ? `${mins} دقيقة` : '';
+}
+
+function calcDrillResponse() {
+  const code = v('drill_code_time');
+  const team = v('drill_team_time');
+  const mins = calcTimeDiff(code, team);
+  const el = document.getElementById('drill_response_display');
+  if (el) el.value = (code && team) ? `${mins} دقيقة` : '';
+}
+
 function openCprModal(id) {
   document.getElementById('cpr_edit_id').value = id || '';
   document.getElementById('cprModalTitle').textContent = id ? 'تعديل الحالة' : 'إضافة حالة إفاقة قلبية';
   if (!id) {
-    ['cpr_name','cpr_medid','cpr_location','cpr_outcome','cpr_cycles','cpr_code_time','cpr_start_time','cpr_team_time','cpr_end_time'].forEach(i => {
-      const el = document.getElementById(i);
-      if (el) el.value = '';
+    ['cpr_name','cpr_medid','cpr_location','cpr_outcome','cpr_cycles',
+     'cpr_code_time','cpr_start_time','cpr_team_time','cpr_end_time','cpr_response_display'].forEach(i => {
+      const el = document.getElementById(i); if (el) el.value = '';
     });
     document.getElementById('cpr_date').value = new Date().toISOString().split('T')[0];
     document.getElementById('cpr_doc_no').checked = true;
@@ -2276,21 +2369,17 @@ async function saveCpr() {
   const name = v('cpr_name');
   if (!name) { toast('يرجى إدخال اسم المريض', 'error'); return; }
   const editId = document.getElementById('cpr_edit_id').value;
+  const response_min = calcTimeDiff(v('cpr_code_time'), v('cpr_team_time'));
   const rec = {
     name, medid: v('cpr_medid'), date: v('cpr_date'),
     location: v('cpr_location'), outcome: v('cpr_outcome'),
     cycles: n('cpr_cycles'), doc_complete: getRadio('cpr_doc'),
     code_time: v('cpr_code_time'), start_time: v('cpr_start_time'),
     team_time: v('cpr_team_time'), end_time: v('cpr_end_time'),
-    month: getMonthLabel(v('cpr_date')),
-    response_min: calcTimeDiff(v('cpr_code_time'), v('cpr_team_time')),
+    month: getMonthLabel(v('cpr_date')), response_min,
   };
-  if (editId) {
-    rec.id = Number(editId);
-    await dbPut('cpr', rec);
-  } else {
-    await dbAdd('cpr', rec);
-  }
+  if (editId) { rec.id = Number(editId); await dbPut('cpr', rec); }
+  else { await dbAdd('cpr', rec); }
   closeModal('cprModal');
   await renderCprList();
   updateHomeStats();
@@ -2331,14 +2420,77 @@ async function renderCprList() {
           <div style="font-weight:700;font-size:14px;margin-bottom:2px">${r.name}</div>
           <div style="font-size:12px;color:var(--text-muted)">${r.date || ''} · ${r.location || ''}</div>
           <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
-            <span class="badge ${r.outcome==='نجاة'?'badge-green':r.outcome==='وفاة'?'badge-red':'badge-blue'}">${r.outcome||'—'}</span>
+            <span class="badge ${r.outcome==='نجاة'?'badge-green':'badge-red'}">${r.outcome||'—'}</span>
             ${r.response_min > 0 ? `<span class="badge badge-yellow">⏱ ${r.response_min} د</span>` : ''}
             ${r.doc_complete==='نعم' ? `<span class="badge badge-blue">توثيق ✅</span>` : ''}
           </div>
         </div>
-        <div style="display:flex;gap:5px">
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteCpr(${r.id})" style="font-size:14px;color:var(--danger)">🗑</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteCpr(${r.id})" style="font-size:14px;color:var(--danger)">🗑</button>
+      </div>
+    </div>`).join('');
+  await renderDrillList();
+}
+
+// ===== CPR DRILLS =====
+function openDrillModal(id) {
+  document.getElementById('drill_edit_id').value = id || '';
+  document.getElementById('cprDrillModalTitle').textContent = id ? 'تعديل مناورة' : 'إضافة مناورة إفاقة قلبية';
+  if (!id) {
+    ['drill_name','drill_location','drill_code_time','drill_start_time',
+     'drill_team_time','drill_response_display'].forEach(i => {
+      const el = document.getElementById(i); if (el) el.value = '';
+    });
+    document.getElementById('drill_date').value = new Date().toISOString().split('T')[0];
+  }
+  openModal('cprDrillModal');
+}
+
+async function saveDrill() {
+  const name = v('drill_name');
+  if (!name) { toast('يرجى إدخال الاسم', 'error'); return; }
+  const editId = document.getElementById('drill_edit_id').value;
+  const response_min = calcTimeDiff(v('drill_code_time'), v('drill_team_time'));
+  const rec = {
+    name, date: v('drill_date'), location: v('drill_location'),
+    code_time: v('drill_code_time'), start_time: v('drill_start_time'),
+    team_time: v('drill_team_time'), response_min,
+    month: getMonthLabel(v('drill_date')),
+  };
+  if (editId) { rec.id = Number(editId); await dbPut('drills', rec); }
+  else { await dbAdd('drills', rec); }
+  closeModal('cprDrillModal');
+  await renderDrillList();
+  toast('تم حفظ المناورة ✅', 'success');
+}
+
+async function deleteDrill(id) {
+  if (!confirm('حذف هذه المناورة؟')) return;
+  await dbDelete('drills', id);
+  await renderDrillList();
+}
+
+async function renderDrillList() {
+  const all = await dbGetAll('drills');
+  all.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const list = document.getElementById('drillList');
+  if (!list) return;
+  if (!all.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div><p>لا توجد مناورات مسجلة</p></div>`;
+    return;
+  }
+  list.innerHTML = all.map(r => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;margin-bottom:2px">🎯 ${r.name}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${r.date || ''} · ${r.location || ''}</div>
+          <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
+            ${r.response_min > 0 ? `<span class="badge badge-yellow">⏱ ${r.response_min} د</span>` : ''}
+            ${r.code_time ? `<span class="badge badge-blue">Code Blue: ${r.code_time}</span>` : ''}
+            ${r.team_time ? `<span class="badge badge-blue">وصول الفريق: ${r.team_time}</span>` : ''}
+          </div>
         </div>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteDrill(${r.id})" style="font-size:14px;color:var(--danger)">🗑</button>
       </div>
     </div>`).join('');
 }
