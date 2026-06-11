@@ -13,10 +13,7 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <title>نظام تقارير الرعاية الصحية الأولية</title>
 
-<!-- SheetJS for Excel export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- ExcelJS for template-preserving styled export -->
-<script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<!-- No external Excel library needed: zip engine handles template patching -->
 
 <!-- Google Fonts - Arabic support -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2671,152 +2668,426 @@ async function updateHomeStats() {
 }
 
 // ===== EXPORT EXCEL =====
-async function exportExcel() {
-  const year = localStorage.getItem('report_year') || '';
-  const clinicsKey = year ? `clinics_${year}` : 'main';
-  const [facility, clinics, complaints, training, cpr, er] = await Promise.all([
-    dbGet('facility','main'), dbGet('clinics', clinicsKey),
-    dbGetAll('complaints'), dbGet('training','main'),
-    dbGetAll('cpr'), dbGetAll('er')
-  ]);
+// ═══════════════════════════════════════════════════════
+// ZIP ENGINE — no external libs, works fully offline
+// Ported from example.html pattern
+// ═══════════════════════════════════════════════════════
+const _CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[i] = c; }
+  return t;
+})();
+function _crc32(data) { let c = 0xFFFFFFFF; for (let i = 0; i < data.length; i++) c = _CRC_TABLE[(c ^ data[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function _u16le(v) { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, v, true); return b; }
+function _u32le(v) { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, v, true); return b; }
 
-  toast('⏳ جاري تحضير الملف...', '', 0);
-
-  // Fetch template from cache (already cached by SW)
-  let templateBuffer;
-  try {
-    const res = await fetch('https://karimhany1984.github.io/PHC-documentation/PHC_Data_Collection_Sheet_final.xlsx');
-    if (!res.ok) throw new Error('fetch failed');
-    templateBuffer = await res.arrayBuffer();
-  } catch(e) {
-    toast('❌ تعذر تحميل القالب', 'error', 4000);
-    return;
+async function _decompDeflate(data) {
+  if (typeof DecompressionStream !== 'undefined') {
+    try {
+      const ds = new DecompressionStream('deflate-raw');
+      const writer = ds.writable.getWriter(), reader = ds.readable.getReader();
+      const chunks = [];
+      const pump = () => reader.read().then(({ done, value }) => { if (done) return; chunks.push(value); return pump(); });
+      writer.write(data); writer.close(); await pump();
+      const out = new Uint8Array(chunks.reduce((a, b) => a + b.length, 0)); let p = 0;
+      for (const c of chunks) { out.set(c, p); p += c.length; }
+      return out;
+    } catch(e) { /* fall through to pure-JS */ }
   }
+  // Pure-JS DEFLATE fallback
+  function rb(d, pos) { return function(n) { let v = 0; for (let i = 0; i < n; i++) { v |= ((d[pos[0] >> 3] >> (pos[0] & 7)) & 1) << i; pos[0]++; } return v; }; }
+  const pos = [0], read = rb(data, pos);
+  let cap = Math.max(data.length * 4, 65536), out = new Uint8Array(cap), olen = 0;
+  const grow = () => { cap *= 2; const nb = new Uint8Array(cap); nb.set(out); out = nb; };
+  const wb2 = b => { if (olen >= cap) grow(); out[olen++] = b; };
+  const LS=[3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
+  const LE=[0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
+  const DS=[1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
+  const DE=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+  function bt(ls){const mx=Math.max(...ls);const cnt=new Array(mx+1).fill(0);for(const l of ls)if(l>0)cnt[l]++;const nc=new Array(mx+1).fill(0);let c=0;for(let i=1;i<=mx;i++){c=(c+cnt[i-1])<<1;nc[i]=c;}const tb={};for(let i=0;i<ls.length;i++){const l=ls[i];if(l>0){const cd=nc[l];nc[l]++;let rv=0;for(let j=0;j<l;j++)rv|=((cd>>j)&1)<<(l-1-j);tb[rv+','+l]=i;}}return{tb,mx};}
+  function ds(tr){let c=0;for(let l=1;l<=tr.mx;l++){c=(c<<1)|read(1);const s=tr.tb[c+','+l];if(s!==undefined)return s;}return -1;}
+  let bf=0;
+  do{bf=read(1);const bt2=read(2);if(bt2===0){pos[0]=Math.ceil(pos[0]/8)*8;const ln=data[pos[0]/8]|(data[pos[0]/8+1]<<8);pos[0]+=32;for(let i=0;i<ln;i++){wb2(data[pos[0]/8]);pos[0]+=8;}}else{let lt,dt;if(bt2===1){const ll=[];for(let i=0;i<144;i++)ll.push(8);for(let i=144;i<256;i++)ll.push(9);for(let i=256;i<280;i++)ll.push(7);for(let i=280;i<288;i++)ll.push(8);lt=bt(ll);dt=bt(new Array(32).fill(5));}else{const hl=read(5)+257,hd=read(5)+1,hc=read(4)+4;const CO=[16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15];const cl=new Array(19).fill(0);for(let i=0;i<hc;i++)cl[CO[i]]=read(3);const ct=bt(cl);const lg=[];while(lg.length<hl+hd){const s=ds(ct);if(s<16)lg.push(s);else if(s===16){const rp=lg[lg.length-1];for(let i=0;i<read(2)+3;i++)lg.push(rp);}else if(s===17){for(let i=0;i<read(3)+3;i++)lg.push(0);}else{for(let i=0;i<read(7)+11;i++)lg.push(0);}}lt=bt(lg.slice(0,hl));dt=bt(lg.slice(hl));}while(true){const s=ds(lt);if(s===256)break;if(s<256)wb2(s);else{const li=s-257;const ln=LS[li]+read(LE[li]);const di=ds(dt);const dist=DS[di]+read(DE[di]);for(let i=0;i<ln;i++){wb2(out[olen-dist]);}}}}}while(!bf);
+  return out.slice(0, olen);
+}
 
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(templateBuffer);
-
-  // Helper: set a cell value without touching its style
-  function sc(ws, addr, val) {
-    const cell = ws.getCell(addr);
-    cell.value = val === '' || val === null || val === undefined ? null : val;
+async function _zipRead(buf) {
+  const files = {}, dv = new DataView(buf.buffer, buf.byteOffset);
+  let eocdPos = -1;
+  for (let i = buf.length - 22; i >= 0; i--) {
+    if (buf[i]===0x50&&buf[i+1]===0x4B&&buf[i+2]===0x05&&buf[i+3]===0x06){eocdPos=i;break;}
   }
-
-  // ── SHEET 1: بيانات المنشأة و تردد العيادات ──
-  const ws1 = wb.getWorksheet('بيانات المنشأة و تردد العيادات');
-  sc(ws1, 'B3',  facility?.name  || null);
-  sc(ws1, 'B4',  facility?.code  || null);
-  sc(ws1, 'B5',  facility?.type  || null);
-  sc(ws1, 'B6',  facility?.admin || null);
-  sc(ws1, 'B7',  facility?.dir   || null);
-  sc(ws1, 'B8',  facility?.addr  || null);
-  sc(ws1, 'B9',  facility?.pop   ? Number(facility.pop)    : null);
-  sc(ws1, 'B10', facility?.clinics ? Number(facility.clinics) : null);
-  sc(ws1, 'B11', facility?.staff  ? Number(facility.staff)  : null);
-  sc(ws1, 'B12', facility?.docs   ? Number(facility.docs)   : null);
-  sc(ws1, 'B13', facility?.nurses ? Number(facility.nurses) : null);
-  sc(ws1, 'B14', facility?.pharm  ? Number(facility.pharm)  : null);
-  sc(ws1, 'B15', facility?.other  ? Number(facility.other)  : null);
-
-  // Clinics: rows 18–24, cols C–N (Jan–Dec)
-  const clinicStartRow = 18;
-  const monthCols = ['C','D','E','F','G','H','I','J','K','L','M','N'];
-  CLINIC_TYPES.forEach((c, ci) => {
-    const dataRow = clinics?.rows?.[ci];
-    monthCols.forEach((col, mi) => {
-      const val = dataRow?.months?.[mi];
-      sc(ws1, `${col}${clinicStartRow + ci}`, (val !== '' && val !== undefined) ? Number(val) : null);
-    });
-  });
-
-  // ── SHEET 2: سجل الشكاوى ──
-  // Template data cols: A=م B=تاريخ C=نوع D=ملخص F=تاريخ الحل G=التغذية H=تاريخ التغذية
-  // E,I,J,K,L,M,N are formula columns — skip them
-  const ws2 = wb.getWorksheet('سجل الشكاوى');
-  complaints.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
-    const row = i + 4;
-    sc(ws2, `A${row}`, i + 1);
-    sc(ws2, `B${row}`, r.date ? new Date(r.date) : null);
-    sc(ws2, `C${row}`, r.category || r.type || null);
-    sc(ws2, `D${row}`, r.summary || null);
-    sc(ws2, `F${row}`, r.resolve_date ? new Date(r.resolve_date) : null);
-    sc(ws2, `G${row}`, r.feedback || null);
-    sc(ws2, `H${row}`, r.feedback_date ? new Date(r.feedback_date) : null);
-  });
-
-  // ── SHEET 3: تدريب ──
-  // Quarter cols: Jan=C, Apr=F, Jul=I, Oct=L — rows 4–9
-  const ws3 = wb.getWorksheet('تدريب');
-  const qCols = ['C', 'F', 'I', 'L'];
-  TRAINING_ITEMS.forEach((item, ti) => {
-    const row = ti + 4;
-    const savedItem = training?.items?.find(r => r.id === item.id);
-    if (!savedItem) return;
-    if (savedItem.quarters) {
-      savedItem.quarters.forEach((val, qi) => {
-        sc(ws3, `${qCols[qi]}${row}`, (val !== '' && val !== undefined) ? Number(val) : null);
-      });
-    } else if (savedItem.months) {
-      // legacy monthly format — map to quarter columns
-      [0, 3, 6, 9].forEach((mIdx, qi) => {
-        const val = savedItem.months[mIdx];
-        sc(ws3, `${qCols[qi]}${row}`, (val !== '' && val !== undefined) ? Number(val) : null);
-      });
+  if (eocdPos < 0) {
+    let pos = 0;
+    while (pos + 30 < buf.length) {
+      if (buf[pos]===0x50&&buf[pos+1]===0x4B&&buf[pos+2]===0x03&&buf[pos+3]===0x04) {
+        const comp=dv.getUint16(pos+8,true),cmpSz=dv.getUint32(pos+18,true),namLen=dv.getUint16(pos+26,true),extLen=dv.getUint16(pos+28,true);
+        const dataOff=pos+30+namLen+extLen, name=new TextDecoder().decode(buf.slice(pos+30,pos+30+namLen));
+        files[name]=(comp===0)?buf.slice(dataOff,dataOff+cmpSz):await _decompDeflate(buf.slice(dataOff,dataOff+cmpSz));
+        pos=dataOff+cmpSz;
+      } else pos++;
     }
-  });
+    return files;
+  }
+  const cdOffset=dv.getUint32(eocdPos+16,true), cdCount=dv.getUint16(eocdPos+8,true);
+  let cdPos=cdOffset;
+  for(let i=0;i<cdCount;i++){
+    if(cdPos+46>buf.length||buf[cdPos]!==0x50||buf[cdPos+1]!==0x4B||buf[cdPos+2]!==0x01||buf[cdPos+3]!==0x02)break;
+    const cdCmpSz=dv.getUint32(cdPos+20,true),namLen=dv.getUint16(cdPos+28,true),extLen=dv.getUint16(cdPos+30,true),cmtLen=dv.getUint16(cdPos+32,true),lfhOff=dv.getUint32(cdPos+42,true);
+    const name=new TextDecoder().decode(buf.slice(cdPos+46,cdPos+46+namLen)); cdPos+=46+namLen+extLen+cmtLen;
+    if(lfhOff+30>buf.length)continue;
+    const lComp=dv.getUint16(lfhOff+8,true); let lCmpSz=dv.getUint32(lfhOff+18,true); if(!lCmpSz)lCmpSz=cdCmpSz;
+    const lNamLen=dv.getUint16(lfhOff+26,true),lExtLen=dv.getUint16(lfhOff+28,true),dataOff=lfhOff+30+lNamLen+lExtLen;
+    if(dataOff+lCmpSz>buf.length)continue;
+    const cmpData=buf.slice(dataOff,dataOff+lCmpSz);
+    files[name]=(lComp===0)?cmpData:await _decompDeflate(cmpData);
+  }
+  return files;
+}
 
-  // ── SHEET 4: الإفاقة القلبية ──
-  // Headers row 4, data from row 5
-  // A=م B=اسم C=رقم D=تاريخ E=مكان F=وقت Code Blue G=بداية CPR
-  // H=وصول الفريق J=دورات K=انتهاء M=نتيجة N=توثيق
-  // I=زمن استجابة (formula) L=مدة إنعاش (formula) O=شهر (formula)
-  const ws4 = wb.getWorksheet('الإفاقة القلبية');
-  cpr.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
-    const row = i + 5;
-    sc(ws4, `A${row}`, i + 1);
-    sc(ws4, `B${row}`, r.name || null);
-    sc(ws4, `C${row}`, r.medid || null);
-    sc(ws4, `D${row}`, r.date ? new Date(r.date) : null);
-    sc(ws4, `E${row}`, r.location || null);
-    // Times: store as text HH:MM — template formula I=H-F computes minutes
-    sc(ws4, `F${row}`, r.code_time  || null);
-    sc(ws4, `G${row}`, r.start_time || null);
-    sc(ws4, `H${row}`, r.team_time  || null);
-    // Write response_min directly into I (override formula result)
-    sc(ws4, `I${row}`, r.response_min != null ? Number(r.response_min) : null);
-    sc(ws4, `J${row}`, r.cycles ? Number(r.cycles) : null);
-    sc(ws4, `K${row}`, r.end_time || null);
-    sc(ws4, `M${row}`, r.outcome || null);
-    sc(ws4, `N${row}`, r.doc_complete || null);
-    sc(ws4, `O${row}`, r.month || null);
-  });
+const _canCompress = typeof CompressionStream !== 'undefined';
+async function _zipWrite(files) {
+  const lhs=[], cds=[];
+  let offset=0;
+  for(const [name, rawData] of Object.entries(files)){
+    const nb=new TextEncoder().encode(name);
+    let comp=rawData, cm=0;
+    if(_canCompress){
+      try{
+        const cs=new CompressionStream('deflate-raw'), writer=cs.writable.getWriter(), reader=cs.readable.getReader(), chunks=[];
+        const pump=()=>reader.read().then(({done,value})=>{if(done)return;chunks.push(value);return pump();});
+        writer.write(rawData); writer.close(); await pump();
+        const c=new Uint8Array(chunks.reduce((a,b)=>a+b.length,0)); let p=0;
+        for(const ch of chunks){c.set(ch,p);p+=ch.length;}
+        if(c.length<rawData.length){comp=c;cm=8;}
+      }catch(e){comp=rawData;cm=0;}
+    }
+    const crc=_crc32(rawData);
+    const lh=new Uint8Array([0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,..._u16le(cm),0x00,0x00,0x00,0x00,..._u32le(crc),..._u32le(comp.length),..._u32le(rawData.length),..._u16le(nb.length),0x00,0x00,...nb,...comp]);
+    const cd=new Uint8Array([0x50,0x4B,0x01,0x02,0x1E,0x03,0x14,0x00,0x00,0x00,..._u16le(cm),0x00,0x00,0x00,0x00,..._u32le(crc),..._u32le(comp.length),..._u32le(rawData.length),..._u16le(nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,..._u32le(offset),...nb]);
+    lhs.push(lh); cds.push(cd); offset+=lh.length;
+  }
+  const cdOff=offset, cdSz=cds.reduce((a,b)=>a+b.length,0);
+  const eocd=new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,..._u16le(cds.length),..._u16le(cds.length),..._u32le(cdSz),..._u32le(cdOff),0x00,0x00]);
+  const total=cdOff+cdSz+eocd.length, out=new Uint8Array(total); let pos=0;
+  for(const lh of lhs){out.set(lh,pos);pos+=lh.length;}
+  for(const cd of cds){out.set(cd,pos);pos+=cd.length;}
+  out.set(eocd,pos); return out;
+}
 
-  // ── SHEET 5: الطوارئ والاستقبال ──
-  // Headers row 3, data from row 4
-  // A=م C=اسم D=رقم E=تاريخ F=دخول G=خروج H=وقت(formula) J=شهر K=إعادة دخول
-  const ws5 = wb.getWorksheet('الطوارئ والاستقبال');
-  er.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
-    const row = i + 4;
-    sc(ws5, `A${row}`, i + 1);
-    sc(ws5, `C${row}`, r.name || null);
-    sc(ws5, `D${row}`, r.medid || null);
-    sc(ws5, `E${row}`, r.date ? new Date(r.date) : null);
-    sc(ws5, `F${row}`, r.in_time  || null);
-    sc(ws5, `G${row}`, r.out_time || null);
-    sc(ws5, `H${row}`, r.duration_min != null ? Number(r.duration_min) : null);
-    sc(ws5, `K${row}`, r.readmit ? 'نعم' : 'لا');
-  });
+// Patch one cell in sheet XML — preserves s= style, handles numeric/string/empty
+function _patchCell(sheet, cellRef, value) {
+  const esc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const repl = (m, attrs) => {
+    const a = attrs.replace(/\s*t="[^"]*"/g, '');
+    if (value === null || value === '' || value === undefined) return '<c r="' + cellRef + '"' + a + '/>';
+    if (typeof value === 'number') return '<c r="' + cellRef + '"' + a + '><v>' + value + '</v></c>';
+    return '<c r="' + cellRef + '"' + a + ' t="str"><v>' + esc(value) + '</v></c>';
+  };
+  sheet = sheet.replace(new RegExp('<c r="' + cellRef + '"([^/]*)/>'), repl);
+  sheet = sheet.replace(new RegExp('<c r="' + cellRef + '"([^>]*)>[\\s\\S]*?<\\/c>'), repl);
+  return sheet;
+}
 
-  // Write and download
-  const buf = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `تقرير_${facility?.name || 'PHC'}_${year || new Date().getFullYear()}.xlsx`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('تم تصدير الملف ✅', 'success', 3000);
+// Force Excel to recalculate all formulas on open
+function _forceRecalc(wbXml) {
+  if (wbXml.includes('<calcPr')) {
+    return wbXml.replace(/<calcPr[^>]*\/>/, '<calcPr calcId="1" fullCalcOnLoad="1"/>');
+  }
+  return wbXml.replace(/(<\/workbook>)/, '<calcPr calcId="1" fullCalcOnLoad="1"/>$1');
+}
+
+// Template fetch with 15-second timeout — served from same repo, cached by SW
+let _cachedTemplate = null;
+async function _loadTemplate() {
+  if (_cachedTemplate) return _cachedTemplate;
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await fetch('./PHC_Data_Collection_Sheet_final.xlsx', { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    _cachedTemplate = new Uint8Array(await r.arrayBuffer());
+    return _cachedTemplate;
+  } catch(e) { clearTimeout(tid); throw e; }
+}
+
+// Preload template in background at startup (so export is instant even offline after first load)
+window.addEventListener('load', () => { _loadTemplate().catch(() => {}); });
+
+// ── col index → Excel letter (0-based: 0=A, 1=B, …) ──
+function _col(n) { return String.fromCharCode(65 + n); }
+
+// ── Excel serial date from YYYY-MM-DD string ──
+function _dateSerial(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return null;
+  // Excel epoch: 1900-01-01 = day 1 (with leap-year bug: day 60 = 1900-02-29)
+  const epoch = new Date('1899-12-30T00:00:00');
+  return Math.round((d - epoch) / 86400000);
+}
+
+// ── Excel time fraction from HH:MM string ──
+function _timeSerial(timeStr) {
+  if (!timeStr) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return null;
+  return (h * 60 + m) / 1440;
+}
+
+let _exportingExcel = false;
+
+async function exportExcel() {
+  if (_exportingExcel) { toast('جاري التصدير بالفعل، يرجى الانتظار...', '', 2000); return; }
+  _exportingExcel = true;
+
+  const year = localStorage.getItem('report_year') || new Date().getFullYear().toString();
+  const clinicsKey = `clinics_${year}`;
+
+  try {
+    toast('⏳ جاري تحميل القالب...', '', 0);
+
+    const [templateBuf, facility, clinics, complaints, training, cpr, er] = await Promise.all([
+      _loadTemplate(),
+      dbGet('facility', 'main'),
+      dbGet('clinics', clinicsKey),
+      dbGetAll('complaints'),
+      dbGet('training', 'main'),
+      dbGetAll('cpr'),
+      dbGetAll('er')
+    ]);
+
+    toast('⏳ جاري كتابة البيانات...', '', 0);
+    await new Promise(r => setTimeout(r, 30)); // yield to let toast render
+
+    const files = await _zipRead(templateBuf);
+
+    // ── Sheet name → worksheet XML key map ──
+    // xl/worksheets/sheet1.xml … sheet7.xml
+    // We detect by reading workbook.xml relationship order
+    let sheetMap = {}; // sheetName → 'xl/worksheets/sheetN.xml'
+    if (files['xl/workbook.xml']) {
+      const wbXml = new TextDecoder().decode(files['xl/workbook.xml']);
+      const sheetRels = [...wbXml.matchAll(/<sheet\s[^>]*name="([^"]*)"[^>]*r:id="([^"]*)"/g)];
+      if (files['xl/_rels/workbook.xml.rels']) {
+        const relsXml = new TextDecoder().decode(files['xl/_rels/workbook.xml.rels']);
+        const relMap = {};
+        for (const m of relsXml.matchAll(/Id="([^"]*)"[^>]*Target="([^"]*)"/g)) relMap[m[1]] = m[2];
+        for (const [, name, rid] of sheetRels) {
+          const target = relMap[rid];
+          if (target) sheetMap[name] = target.startsWith('xl/') ? target : 'xl/' + target;
+        }
+      }
+    }
+    // Fallback: positional mapping
+    const SHEET_NAMES = [
+      'بيانات المنشأة و تردد العيادات',
+      'سجل الشكاوى',
+      'تدريب',
+      'الإفاقة القلبية',
+      'الطوارئ والاستقبال',
+      'الاجمالي الشهري',
+      'نتائج المؤشرات الشهرية'
+    ];
+    SHEET_NAMES.forEach((name, i) => {
+      if (!sheetMap[name]) sheetMap[name] = `xl/worksheets/sheet${i + 1}.xml`;
+    });
+
+    function getSheet(name) {
+      const key = sheetMap[name];
+      if (!key || !files[key]) return null;
+      return new TextDecoder('utf-8').decode(files[key]);
+    }
+    function putSheet(name, xml) {
+      const key = sheetMap[name];
+      if (key) files[key] = new TextEncoder().encode(xml);
+    }
+    function pc(xml, ref, val) { return _patchCell(xml, ref, val); }
+
+    // ════════════════════════════════════════════════
+    // SHEET 1 — بيانات المنشأة و تردد العيادات
+    // Row 3: اسم (B3)  Row 4: كود (B4)  Row 5: نوع (B5)
+    // Row 6: الإدارة (B6)  Row 7: المديرية (B7)  Row 8: العنوان (B8)
+    // Rows 9-15: numeric fields in B
+    // Row 17: header (C-N = Jan-Dec)
+    // Rows 18-24: clinics, B=name, C=monthlyFreq, C-N = Jan-Dec monthly values
+    // ════════════════════════════════════════════════
+    let s1 = getSheet('بيانات المنشأة و تردد العيادات');
+    if (s1) {
+      s1 = pc(s1, 'B3',  facility?.name   || null);
+      s1 = pc(s1, 'B4',  facility?.code   || null);
+      s1 = pc(s1, 'B5',  facility?.type   || null);
+      s1 = pc(s1, 'B6',  facility?.admin  || null);
+      s1 = pc(s1, 'B7',  facility?.dir    || null);
+      s1 = pc(s1, 'B8',  facility?.addr   || null);
+      s1 = pc(s1, 'B9',  facility?.pop    ? Number(facility.pop)    : null);
+      s1 = pc(s1, 'B10', facility?.clinics ? Number(facility.clinics) : null);
+      s1 = pc(s1, 'B11', facility?.staff  ? Number(facility.staff)  : null);
+      s1 = pc(s1, 'B12', facility?.docs   ? Number(facility.docs)   : null);
+      s1 = pc(s1, 'B13', facility?.nurses ? Number(facility.nurses) : null);
+      s1 = pc(s1, 'B14', facility?.pharm  ? Number(facility.pharm)  : null);
+      s1 = pc(s1, 'B15', facility?.other  ? Number(facility.other)  : null);
+      // Clinic rows 18-24: cols C-N = months 0-11 (Jan-Dec)
+      // Col B = monthly frequency target; cols C-N = actual monthly counts
+      const mCols = ['C','D','E','F','G','H','I','J','K','L','M','N'];
+      CLINIC_TYPES.forEach((c, ci) => {
+        const row = 18 + ci;
+        const dataRow = clinics?.rows?.[ci];
+        if (dataRow?.freq !== undefined && dataRow.freq !== '')
+          s1 = pc(s1, `B${row}`, dataRow.freq);
+        mCols.forEach((col, mi) => {
+          const val = dataRow?.months?.[mi];
+          s1 = pc(s1, `${col}${row}`, (val !== '' && val !== undefined && val !== null) ? Number(val) : null);
+        });
+      });
+      putSheet('بيانات المنشأة و تردد العيادات', s1);
+    }
+
+    // ════════════════════════════════════════════════
+    // SHEET 2 — سجل الشكاوى
+    // Headers row 3. Data starts row 4.
+    // A=م  B=تاريخ الشكوى  C=نوع  D=ملخص  E=الحل
+    // F=تاريخ الحل  G=التغذية الراجعة  H=تاريخ التغذية
+    // I=حل فوري  J=حل خلال 72 ساعة
+    // K=زمن الحل(يوم) — formula  L=الشهر — formula
+    // O=تصنيفات الشكاوي (lookup col, don't touch)
+    // ════════════════════════════════════════════════
+    let s2 = getSheet('سجل الشكاوى');
+    if (s2) {
+      complaints.sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((r, i) => {
+        const row = 4 + i;
+        s2 = pc(s2, `A${row}`, i + 1);
+        s2 = pc(s2, `B${row}`, _dateSerial(r.date));
+        s2 = pc(s2, `C${row}`, r.type     || null);
+        s2 = pc(s2, `D${row}`, r.summary  || null);
+        s2 = pc(s2, `E${row}`, r.resolution || null);
+        s2 = pc(s2, `F${row}`, _dateSerial(r.resolve_date));
+        s2 = pc(s2, `G${row}`, r.feedback || null);
+        s2 = pc(s2, `H${row}`, _dateSerial(r.feedback_date));
+        s2 = pc(s2, `I${row}`, r.immediate  || 'لا');
+        s2 = pc(s2, `J${row}`, r.hr72       || 'لا');
+      });
+      putSheet('سجل الشكاوى', s2);
+    }
+
+    // ════════════════════════════════════════════════
+    // SHEET 3 — تدريب
+    // Headers row 3 (م, البند, Jan-26 … Dec-26). Data rows 4-9.
+    // A=م  B=البند  C-N = Jan-Dec monthly values
+    // ════════════════════════════════════════════════
+    let s3 = getSheet('تدريب');
+    if (s3) {
+      const mCols3 = ['C','D','E','F','G','H','I','J','K','L','M','N'];
+      TRAINING_ITEMS.forEach((item, ti) => {
+        const row = 4 + ti;
+        const saved = training?.items?.find(r => r.id === item.id);
+        let monthVals = Array(12).fill(null);
+        if (saved?.months) {
+          monthVals = saved.months.map(v => (v !== '' && v !== null && v !== undefined) ? Number(v) : null);
+        } else if (saved?.quarters) {
+          [0, 3, 6, 9].forEach((mIdx, qi) => {
+            const v = saved.quarters[qi];
+            monthVals[mIdx] = (v !== '' && v !== null && v !== undefined) ? Number(v) : null;
+          });
+        }
+        mCols3.forEach((col, mi) => { s3 = pc(s3, `${col}${row}`, monthVals[mi]); });
+      });
+      putSheet('تدريب', s3);
+    }
+
+    // ════════════════════════════════════════════════
+    // SHEET 4 — الإفاقة القلبية
+    // Headers row 4. Data rows 5+.
+    // A=م  B=اسم  C=الرقم الطبي  D=تاريخ (date serial)
+    // E=مكان  F=وقت Code Blue (time serial)
+    // G=وقت بداية CPR (time serial)
+    // H=وقت وصول الفريق (time serial)
+    // I=زمن الاستجابة — formula (H-F)*1440, don't overwrite
+    // J=عدد الدورات  K=وقت الانتهاء (time serial)
+    // L=مدة الانعاش — formula, don't overwrite
+    // M=النتيجة  N=نموذج التوثيق  O=شهر حدوث الحدث
+    // ════════════════════════════════════════════════
+    let s4 = getSheet('الإفاقة القلبية');
+    if (s4) {
+      cpr.sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((r, i) => {
+        const row = 5 + i;
+        s4 = pc(s4, `A${row}`, i + 1);
+        s4 = pc(s4, `B${row}`, r.name   || null);
+        s4 = pc(s4, `C${row}`, r.medid  || null);
+        s4 = pc(s4, `D${row}`, _dateSerial(r.date));
+        s4 = pc(s4, `E${row}`, r.location   || null);
+        s4 = pc(s4, `F${row}`, _timeSerial(r.code_time));
+        s4 = pc(s4, `G${row}`, _timeSerial(r.start_time));
+        s4 = pc(s4, `H${row}`, _timeSerial(r.team_time));
+        // I = formula — leave as-is so Excel recalculates response time
+        s4 = pc(s4, `J${row}`, r.cycles ? Number(r.cycles) : null);
+        s4 = pc(s4, `K${row}`, _timeSerial(r.end_time));
+        // L = formula — leave as-is
+        s4 = pc(s4, `M${row}`, r.outcome      || null);
+        s4 = pc(s4, `N${row}`, r.doc_complete || null);
+        s4 = pc(s4, `O${row}`, r.month        || null);
+      });
+      putSheet('الإفاقة القلبية', s4);
+    }
+
+    // ════════════════════════════════════════════════
+    // SHEET 5 — الطوارئ والاستقبال
+    // Headers row 3. Data rows 4+.
+    // A=م  B=التاريخ (date serial, same as E)
+    // C=اسم المريض  D=الرقم الطبي
+    // E=تاريخ الزيارة (date serial)
+    // F=ساعة الدخول (time serial)
+    // G=ساعة الخروج (time serial)
+    // H=الوقت المستغرق — formula (G-F)*1440, don't overwrite
+    // J=الشهر — formula, don't overwrite
+    // K=عدد مرضى إعادة الدخول خلال 72 ساعة (0 or 1)
+    // ════════════════════════════════════════════════
+    let s5 = getSheet('الطوارئ والاستقبال');
+    if (s5) {
+      er.sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((r, i) => {
+        const row = 4 + i;
+        const ds = _dateSerial(r.date);
+        s5 = pc(s5, `A${row}`, i + 1);
+        s5 = pc(s5, `B${row}`, ds);
+        s5 = pc(s5, `C${row}`, r.name  || null);
+        s5 = pc(s5, `D${row}`, r.medid || null);
+        s5 = pc(s5, `E${row}`, ds);
+        s5 = pc(s5, `F${row}`, _timeSerial(r.in_time));
+        s5 = pc(s5, `G${row}`, _timeSerial(r.out_time));
+        // H = formula — leave as-is
+        // J = formula — leave as-is
+        s5 = pc(s5, `K${row}`, r.readmit ? 1 : 0);
+      });
+      putSheet('الطوارئ والاستقبال', s5);
+    }
+
+    // ── Force recalculation on open ──
+    if (files['xl/workbook.xml']) {
+      let wbXml = new TextDecoder().decode(files['xl/workbook.xml']);
+      wbXml = _forceRecalc(wbXml);
+      files['xl/workbook.xml'] = new TextEncoder().encode(wbXml);
+    }
+
+    toast('⏳ جاري إنشاء الملف...', '', 0);
+    await new Promise(r => setTimeout(r, 30));
+
+    const result = await _zipWrite(files);
+    const blob = new Blob([result], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const dlUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fname = `تقرير_${facility?.name || 'PHC'}_${year}.xlsx`;
+    a.href = dlUrl; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
+    toast('✅ تم تصدير الملف بنجاح', 'success', 3000);
+
+  } catch(e) {
+    console.error('Export error:', e);
+    toast('❌ خطأ في التصدير: ' + e.message, 'error', 5000);
+  } finally {
+    _exportingExcel = false;
+  }
 }
 
 // ===== WHATSAPP SHARE =====
