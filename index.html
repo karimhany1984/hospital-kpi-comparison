@@ -2678,122 +2678,162 @@ async function exportExcel() {
     dbGetAll('cpr'), dbGetAll('er')
   ]);
 
-  const wb = XLSX.utils.book_new();
+  toast('⏳ جاري تحضير الملف...', '', 0);
 
-  // Sheet 1: بيانات المنشأة و تردد العيادات
-  const sh1 = [];
-  sh1.push(['بيانات المنشأة الصحية و تردد العيادات']);
-  sh1.push(['اسم المنشأة', facility?.name || '']);
-  sh1.push(['كود المنشأة', facility?.code || '']);
-  sh1.push(['نوع المنشأة', facility?.type || '']);
-  sh1.push(['الادارة الصحية', facility?.admin || '']);
-  sh1.push(['المديرية', facility?.dir || '']);
-  sh1.push(['العنوان', facility?.addr || '']);
-  sh1.push(['اجمالي عدد المواطنين', facility?.pop || '']);
-  sh1.push(['عدد العيادات', facility?.clinics || '']);
-  sh1.push(['اجمالي عدد العاملين', facility?.staff || '']);
-  sh1.push(['عدد الاطباء واطباء الاسنان', facility?.docs || '']);
-  sh1.push(['عدد التمريض', facility?.nurses || '']);
-  sh1.push(['عدد الصيادلة', facility?.pharm || '']);
-  sh1.push(['عدد الفئات الاخرى', facility?.other || '']);
-  sh1.push([]);
-  const clinicHeader = ['تخصصات العيادات', ...MONTHS_EN];
-  sh1.push(clinicHeader);
-  CLINIC_TYPES.forEach((c,ci) => {
-    const row = clinics?.rows?.[ci];
-    sh1.push([c.name, ...MONTHS_EN.map((_,mi) => row?.months?.[mi] || '')]);
-  });
-  const ws1 = XLSX.utils.aoa_to_sheet(sh1);
-  XLSX.utils.book_append_sheet(wb, ws1, 'بيانات المنشأة و تردد العيادات');
-
-  // Sheet 2: سجل الشكاوى
-  const sh2 = [['م','تاريخ الشكوي','نوع الشكوي','ملخص الشكوي','الحل','تاريخ الحل','التغذية الراجعة','حل فوري','حل خلال 72 ساعة','زمن الحل(يوم)','الشهر','تصنيفات الشكاوي']];
-  complaints.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r,i) => {
-    const daysToResolve = r.date && r.resolve_date ? Math.round((new Date(r.resolve_date)-new Date(r.date))/(1000*60*60*24)) : '';
-    sh2.push([i+1, r.date||'', r.type||'', r.summary||'', r.resolution||'', r.resolve_date||'', r.feedback||'', r.immediate||'لا', r.hr72||'لا', daysToResolve, r.month||'', r.category||'']);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh2), 'سجل الشكاوى');
-
-  // Sheet 3: تدريب
-  const sh3 = [['م','البند',...MONTHS_EN]];
-  TRAINING_ITEMS.forEach((item,i) => {
-    const row = training?.items?.find(r=>r.id===item.id);
-    sh3.push([i+1, item.name, ...MONTHS_EN.map((_,mi) => row?.months?.[mi] ?? '')]);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh3), 'تدريب');
-
-  // Sheet 4: الإفاقة القلبية
-  const sh4 = [['م','اسم المريض','الرقم الطبي','تاريخ الحادثة','مكان الحدوث','وقت اعلان Code Blue','وقت بداية CPR','وقت وصول الفريق','وقت انتهاء CPR','عدد دورات CPR','نتيجة الانعاش','نموذج التوثيق','الشهر','زمن الاستجابة (د)']];
-  cpr.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r,i) => {
-    sh4.push([i+1, r.name||'', r.medid||'', r.date||'', r.location||'', r.code_time||'', r.start_time||'', r.team_time||'', r.end_time||'', r.cycles||'', r.outcome||'', r.doc_complete||'', r.month||'', r.response_min||'']);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh4), 'الإفاقة القلبية');
-
-  // Sheet 5: الطوارئ والاستقبال
-  const sh5 = [['م','اسم المريض','الرقم الطبي','تاريخ الزيارة','ساعة الدخول','ساعة الخروج','الوقت المستغرق (د)','اعادة الدخول خلال 72 ساعة','الشهر']];
-  er.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r,i) => {
-    sh5.push([i+1, r.name||'', r.medid||'', r.date||'', r.in_time||'', r.out_time||'', r.duration_min||'', r.readmit?'نعم':'لا', r.month||'']);
-  });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh5), 'الطوارئ والاستقبال');
-
-  // Sheet 6: الاجمالي الشهري
-  const compByMonth = groupByMonth(complaints, 'month');
-  const cprByMonth = groupByMonth(cpr, 'month');
-  const erByMonth = groupByMonth(er, 'month');
-  const sh6 = [['البند', ...MONTHS_EN]];
-  sh6.push(['📋 الشكاوى']);
-  sh6.push(['إجمالي عدد الشكاوى', ...MONTHS_EN.map(m => compByMonth[m]?.length||0)]);
-  sh6.push(['الشكاوى المحلولة', ...MONTHS_EN.map(m => compByMonth[m]?.filter(r=>r.resolution==='تم الحل').length||0)]);
-  sh6.push(['الشكاوى الفورية', ...MONTHS_EN.map(m => compByMonth[m]?.filter(r=>r.immediate==='نعم').length||0)]);
-  sh6.push(['الشكاوى المحلولة خلال 72 ساعة', ...MONTHS_EN.map(m => compByMonth[m]?.filter(r=>r.hr72==='نعم').length||0)]);
-  sh6.push(['❤️ الإفاقة القلبية']);
-  sh6.push(['إجمالي حالات توقف القلب', ...MONTHS_EN.map(m => cprByMonth[m]?.length||0)]);
-  sh6.push(['حالات النجاة', ...MONTHS_EN.map(m => cprByMonth[m]?.filter(r=>r.outcome==='نجاة').length||0)]);
-  sh6.push(['حالات الوفاة', ...MONTHS_EN.map(m => cprByMonth[m]?.filter(r=>r.outcome==='وفاة').length||0)]);
-  sh6.push(['🚨 الطوارئ والاستقبال']);
-  sh6.push(['إجمالي مرضى الطوارئ', ...MONTHS_EN.map(m => erByMonth[m]?.length||0)]);
-  sh6.push(['إعادة الدخول خلال 72 ساعة', ...MONTHS_EN.map(m => erByMonth[m]?.filter(r=>r.readmit).length||0)]);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh6), 'الاجمالي الشهري');
-
-  // Sheet 7: نتائج المؤشرات الشهرية
-  const sh7 = [['م','كود المؤشر','المؤشر', ...MONTHS_EN]];
-  sh7.push(['مؤشرات الشكاوى']);
-  sh7.push([1,'FU-COMP-01','إجمالي عدد الشكاوى',...MONTHS_EN.map(m=>compByMonth[m]?.length||0)]);
-  sh7.push([2,'FU-COMP-02','الشكاوى المحلولة',...MONTHS_EN.map(m=>compByMonth[m]?.filter(r=>r.resolution==='تم الحل').length||0)]);
-  sh7.push(['مؤشرات الطوارئ']);
-  sh7.push([3,'FU-016','إجمالي مرضى الطوارئ',...MONTHS_EN.map(m=>erByMonth[m]?.length||0)]);
-  sh7.push([4,'FU-017','معدل إعادة الدخول خلال 72 ساعة',...MONTHS_EN.map(m=>{
-    const arr=erByMonth[m]||[]; if(!arr.length) return '—';
-    return ((arr.filter(r=>r.readmit).length/arr.length)*100).toFixed(1)+'%';
-  })]);
-  sh7.push(['مؤشرات الإفاقة القلبية']);
-  sh7.push([5,'FU-029','عدد حالات توقف القلب',...MONTHS_EN.map(m=>cprByMonth[m]?.length||0)]);
-  sh7.push([6,'FU-030','نسبة النجاة بعد الإفاقة',...MONTHS_EN.map(m=>{
-    const arr=cprByMonth[m]||[]; if(!arr.length) return '—';
-    return ((arr.filter(r=>r.outcome==='نجاة').length/arr.length)*100).toFixed(1)+'%';
-  })]);
-  if (training?.items) {
-    sh7.push(['مؤشرات التدريب']);
-    const getV=(id,mi)=>training.items.find(r=>r.id===id)?.months?.[mi]??'';
-    sh7.push([7,'FU-006','نسبة العاملين المدربين على الدفاع المدني',...MONTHS_AR.map((_,mi)=>{
-      const t=getV('tr3',mi),d=getV('tr6',mi); if(t===''||d==='') return '—'; if(!Number(t)) return '—';
-      return (Number(d)/Number(t)*100).toFixed(1)+'%';
-    })]);
-    sh7.push([8,'FU-025','نسبة تدريب الأطباء على BLS',...MONTHS_AR.map((_,mi)=>{
-      const t=getV('tr1',mi),d=getV('tr4',mi); if(t===''||d==='') return '—'; if(!Number(t)) return '—';
-      return (Number(d)/Number(t)*100).toFixed(1)+'%';
-    })]);
-    sh7.push([9,'FU-026','نسبة تدريب التمريض على BLS',...MONTHS_AR.map((_,mi)=>{
-      const t=getV('tr2',mi),d=getV('tr5',mi); if(t===''||d==='') return '—'; if(!Number(t)) return '—';
-      return (Number(d)/Number(t)*100).toFixed(1)+'%';
-    })]);
+  // Fetch template from GitHub Pages
+  let templateArrayBuffer;
+  try {
+    const res = await fetch('https://karimhany1984.github.io/PHC-documentation/PHC_Data_Collection_Sheet_final.xlsx', { cache: 'no-store' });
+    if (!res.ok) throw new Error('fetch failed');
+    templateArrayBuffer = await res.arrayBuffer();
+  } catch(e) {
+    toast('❌ تعذر تحميل قالب الملف. تأكد من الاتصال بالإنترنت.', 'error', 4000);
+    return;
   }
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sh7), 'نتائج المؤشرات الشهرية');
+
+  const wb = XLSX.read(templateArrayBuffer, { type: 'array', cellStyles: true, bookVBA: true });
+
+  // Helper: set cell value preserving existing style
+  function setCell(ws, addr, value) {
+    if (!ws[addr]) ws[addr] = {};
+    ws[addr].v = value;
+    ws[addr].t = (typeof value === 'number') ? 'n' : 's';
+    if (ws[addr].f) delete ws[addr].f; // remove formula only for data cells
+  }
+
+  // ── SHEET 1: بيانات المنشأة و تردد العيادات ──
+  const ws1 = wb.Sheets['بيانات المنشأة و تردد العيادات'];
+  // Facility info — column B, rows 3–15
+  const facFields = [
+    [3, facility?.name || ''],
+    [4, facility?.code || ''],
+    [5, facility?.type || ''],
+    [6, facility?.admin || ''],
+    [7, facility?.dir || ''],
+    [8, facility?.addr || ''],
+    [9, facility?.pop || ''],
+    [10, facility?.clinics || ''],
+    [11, facility?.staff || ''],
+    [12, facility?.docs || ''],
+    [13, facility?.nurses || ''],
+    [14, facility?.pharm || ''],
+    [15, facility?.other || ''],
+  ];
+  facFields.forEach(([row, val]) => setCell(ws1, `B${row}`, val));
+
+  // Clinics data — rows 18–24, columns C–N (months Jan–Dec)
+  const clinicRows = [18, 19, 20, 21, 22, 23, 24]; // طب أسرة, تنظيم, أمومة, أطفال, IMCI, أسنان, أخرى
+  const monthCols = ['C','D','E','F','G','H','I','J','K','L','M','N'];
+  CLINIC_TYPES.forEach((c, ci) => {
+    if (ci >= clinicRows.length) return;
+    const row = clinics?.rows?.[ci];
+    monthCols.forEach((col, mi) => {
+      const val = row?.months?.[mi];
+      if (val !== '' && val !== undefined) setCell(ws1, `${col}${clinicRows[ci]}`, Number(val));
+    });
+  });
+
+  // ── SHEET 2: سجل الشكاوى ──
+  // Data goes in rows 4+ (row 3 = header)
+  // Columns: A=م, B=تاريخ, C=نوع, D=ملخص, F=تاريخ الحل, G=التغذية الراجعة, H=تاريخ التغذية
+  // Cols E,I,J,K,L,M,N are formulas — do NOT touch them
+  const ws2 = wb.Sheets['سجل الشكاوى'];
+  complaints.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
+    const row = i + 4;
+    setCell(ws2, `A${row}`, i + 1);
+    if (r.date) setCell(ws2, `B${row}`, new Date(r.date));
+    ws2[`B${row}`] = ws2[`B${row}`] || {};
+    if (r.date) { ws2[`B${row}`].v = new Date(r.date); ws2[`B${row}`].t = 'd'; ws2[`B${row}`].z = 'mm/dd/yyyy'; }
+    setCell(ws2, `C${row}`, r.category || r.type || '');
+    setCell(ws2, `D${row}`, r.summary || '');
+    if (r.resolve_date) { ws2[`F${row}`] = { v: new Date(r.resolve_date), t: 'd', z: 'mm/dd/yyyy' }; }
+    setCell(ws2, `G${row}`, r.feedback || '');
+    if (r.feedback_date) { ws2[`H${row}`] = { v: new Date(r.feedback_date), t: 'd', z: 'mm/dd/yyyy' }; }
+  });
+
+  // ── SHEET 3: تدريب ──
+  // Quarter data: Jan=col C, Apr=col F, Jul=col I, Oct=col L
+  // Rows 4–9 = 6 training items
+  const ws3 = wb.Sheets['تدريب'];
+  const QUARTER_COLS = {0: 'C', 3: 'F', 6: 'I', 9: 'L'}; // monthIdx → col
+  TRAINING_ITEMS.forEach((item, ti) => {
+    const row = ti + 4;
+    const savedItem = training?.items?.find(r => r.id === item.id);
+    if (!savedItem) return;
+    // quarters array: [Q1_val, Q2_val, Q3_val, Q4_val]
+    if (savedItem.quarters) {
+      const qCols = ['C','F','I','L'];
+      savedItem.quarters.forEach((val, qi) => {
+        if (val !== '' && val !== undefined) setCell(ws3, `${qCols[qi]}${row}`, Number(val));
+      });
+    } else if (savedItem.months) {
+      // old format — map months to quarters
+      Object.entries(QUARTER_COLS).forEach(([mIdx, col]) => {
+        const val = savedItem.months[Number(mIdx)];
+        if (val !== '' && val !== undefined) setCell(ws3, `${col}${row}`, Number(val));
+      });
+    }
+  });
+
+  // ── SHEET 4: الإفاقة القلبية ──
+  // Headers at row 4, data starts row 5
+  // Cols: A=م, B=اسم, C=رقم طبي, D=تاريخ, E=مكان, F=وقت Code Blue, G=بداية CPR,
+  //       H=وصول الفريق, J=دورات, K=انتهاء, M=نتيجة, N=توثيق
+  // I=زمن استجابة (formula), L=مدة انعاش (formula), O=شهر (formula)
+  const ws4 = wb.Sheets['الإفاقة القلبية'];
+  cpr.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
+    const row = i + 5;
+    setCell(ws4, `A${row}`, i + 1);
+    setCell(ws4, `B${row}`, r.name || '');
+    setCell(ws4, `C${row}`, r.medid || '');
+    if (r.date) ws4[`D${row}`] = { v: new Date(r.date), t: 'd', z: 'mm/dd/yyyy' };
+    setCell(ws4, `E${row}`, r.location || '');
+    // Times as text (HH:MM)
+    if (r.code_time) setCell(ws4, `F${row}`, r.code_time);
+    if (r.start_time) setCell(ws4, `G${row}`, r.start_time);
+    if (r.team_time) setCell(ws4, `H${row}`, r.team_time);
+    // I = response time formula in template — write value directly
+    if (r.response_min !== undefined) { ws4[`I${row}`] = { v: r.response_min, t: 'n' }; }
+    if (r.cycles) setCell(ws4, `J${row}`, Number(r.cycles));
+    if (r.end_time) setCell(ws4, `K${row}`, r.end_time);
+    setCell(ws4, `M${row}`, r.outcome || '');
+    setCell(ws4, `N${row}`, r.doc_complete || '');
+    // O = month formula — write month label
+    if (r.month) { ws4[`O${row}`] = { v: r.month, t: 's' }; }
+  });
+
+  // ── SHEET 5: الطوارئ والاستقبال ──
+  // Row 3 = header, data from row 4
+  // Cols: A=م, C=اسم, D=رقم طبي, E=تاريخ, F=دخول, G=خروج
+  // H=وقت مستغرق (formula), J=شهر (formula), K=إعادة دخول, L=اجمالي مرضى
+  const ws5 = wb.Sheets['الطوارئ والاستقبال'];
+  er.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
+    const row = i + 4;
+    setCell(ws5, `A${row}`, i + 1);
+    setCell(ws5, `C${row}`, r.name || '');
+    setCell(ws5, `D${row}`, r.medid || '');
+    if (r.date) ws5[`E${row}`] = { v: new Date(r.date), t: 'd', z: 'mm/dd/yyyy' };
+    if (r.in_time) setCell(ws5, `F${row}`, r.in_time);
+    if (r.out_time) setCell(ws5, `G${row}`, r.out_time);
+    if (r.duration_min !== undefined) ws5[`H${row}`] = { v: r.duration_min, t: 'n' };
+    if (r.month) ws5[`J${row}`] = { v: new Date(`${year || 2026}-${r.month.substring(0,2)}-01`), t: 'd', z: 'mmm-yyyy' };
+    setCell(ws5, `K${row}`, r.readmit ? 'نعم' : 'لا');
+  });
+
+  // Update workbook range references so SheetJS knows about new rows
+  function updateRange(ws, lastRow, lastCol) {
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+    if (lastRow > range.e.r) range.e.r = lastRow;
+    if (lastCol > range.e.c) range.e.c = lastCol;
+    ws['!ref'] = XLSX.utils.encode_range(range);
+  }
+  if (complaints.length) updateRange(ws2, complaints.length + 3, 17);
+  if (cpr.length) updateRange(ws4, cpr.length + 4, 21);
+  if (er.length) updateRange(ws5, er.length + 3, 14);
 
   const facName = facility?.name || 'PHC';
-  const today = new Date().toLocaleDateString('ar-EG');
-  XLSX.writeFile(wb, `تقرير_${facName}_${new Date().getFullYear()}.xlsx`);
-  toast('تم تصدير الملف ✅', 'success');
+  XLSX.writeFile(wb, `تقرير_${facName}_${year || new Date().getFullYear()}.xlsx`);
+  toast('تم تصدير الملف ✅', 'success', 3000);
 }
 
 // ===== WHATSAPP SHARE =====
