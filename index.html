@@ -15,6 +15,8 @@
 
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- ExcelJS for template-preserving styled export -->
+<script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <!-- Google Fonts - Arabic support -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2680,159 +2682,140 @@ async function exportExcel() {
 
   toast('⏳ جاري تحضير الملف...', '', 0);
 
-  // Fetch template from GitHub Pages
-  let templateArrayBuffer;
+  // Fetch template from cache (already cached by SW)
+  let templateBuffer;
   try {
-    const res = await fetch('https://karimhany1984.github.io/PHC-documentation/PHC_Data_Collection_Sheet_final.xlsx', { cache: 'no-store' });
+    const res = await fetch('https://karimhany1984.github.io/PHC-documentation/PHC_Data_Collection_Sheet_final.xlsx');
     if (!res.ok) throw new Error('fetch failed');
-    templateArrayBuffer = await res.arrayBuffer();
+    templateBuffer = await res.arrayBuffer();
   } catch(e) {
-    toast('❌ تعذر تحميل قالب الملف. تأكد من الاتصال بالإنترنت.', 'error', 4000);
+    toast('❌ تعذر تحميل القالب', 'error', 4000);
     return;
   }
 
-  const wb = XLSX.read(templateArrayBuffer, { type: 'array', cellStyles: true, bookVBA: true });
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(templateBuffer);
 
-  // Helper: set cell value preserving existing style
-  function setCell(ws, addr, value) {
-    if (!ws[addr]) ws[addr] = {};
-    ws[addr].v = value;
-    ws[addr].t = (typeof value === 'number') ? 'n' : 's';
-    if (ws[addr].f) delete ws[addr].f; // remove formula only for data cells
+  // Helper: set a cell value without touching its style
+  function sc(ws, addr, val) {
+    const cell = ws.getCell(addr);
+    cell.value = val === '' || val === null || val === undefined ? null : val;
   }
 
   // ── SHEET 1: بيانات المنشأة و تردد العيادات ──
-  const ws1 = wb.Sheets['بيانات المنشأة و تردد العيادات'];
-  // Facility info — column B, rows 3–15
-  const facFields = [
-    [3, facility?.name || ''],
-    [4, facility?.code || ''],
-    [5, facility?.type || ''],
-    [6, facility?.admin || ''],
-    [7, facility?.dir || ''],
-    [8, facility?.addr || ''],
-    [9, facility?.pop || ''],
-    [10, facility?.clinics || ''],
-    [11, facility?.staff || ''],
-    [12, facility?.docs || ''],
-    [13, facility?.nurses || ''],
-    [14, facility?.pharm || ''],
-    [15, facility?.other || ''],
-  ];
-  facFields.forEach(([row, val]) => setCell(ws1, `B${row}`, val));
+  const ws1 = wb.getWorksheet('بيانات المنشأة و تردد العيادات');
+  sc(ws1, 'B3',  facility?.name  || null);
+  sc(ws1, 'B4',  facility?.code  || null);
+  sc(ws1, 'B5',  facility?.type  || null);
+  sc(ws1, 'B6',  facility?.admin || null);
+  sc(ws1, 'B7',  facility?.dir   || null);
+  sc(ws1, 'B8',  facility?.addr  || null);
+  sc(ws1, 'B9',  facility?.pop   ? Number(facility.pop)    : null);
+  sc(ws1, 'B10', facility?.clinics ? Number(facility.clinics) : null);
+  sc(ws1, 'B11', facility?.staff  ? Number(facility.staff)  : null);
+  sc(ws1, 'B12', facility?.docs   ? Number(facility.docs)   : null);
+  sc(ws1, 'B13', facility?.nurses ? Number(facility.nurses) : null);
+  sc(ws1, 'B14', facility?.pharm  ? Number(facility.pharm)  : null);
+  sc(ws1, 'B15', facility?.other  ? Number(facility.other)  : null);
 
-  // Clinics data — rows 18–24, columns C–N (months Jan–Dec)
-  const clinicRows = [18, 19, 20, 21, 22, 23, 24]; // طب أسرة, تنظيم, أمومة, أطفال, IMCI, أسنان, أخرى
+  // Clinics: rows 18–24, cols C–N (Jan–Dec)
+  const clinicStartRow = 18;
   const monthCols = ['C','D','E','F','G','H','I','J','K','L','M','N'];
   CLINIC_TYPES.forEach((c, ci) => {
-    if (ci >= clinicRows.length) return;
-    const row = clinics?.rows?.[ci];
+    const dataRow = clinics?.rows?.[ci];
     monthCols.forEach((col, mi) => {
-      const val = row?.months?.[mi];
-      if (val !== '' && val !== undefined) setCell(ws1, `${col}${clinicRows[ci]}`, Number(val));
+      const val = dataRow?.months?.[mi];
+      sc(ws1, `${col}${clinicStartRow + ci}`, (val !== '' && val !== undefined) ? Number(val) : null);
     });
   });
 
   // ── SHEET 2: سجل الشكاوى ──
-  // Data goes in rows 4+ (row 3 = header)
-  // Columns: A=م, B=تاريخ, C=نوع, D=ملخص, F=تاريخ الحل, G=التغذية الراجعة, H=تاريخ التغذية
-  // Cols E,I,J,K,L,M,N are formulas — do NOT touch them
-  const ws2 = wb.Sheets['سجل الشكاوى'];
+  // Template data cols: A=م B=تاريخ C=نوع D=ملخص F=تاريخ الحل G=التغذية H=تاريخ التغذية
+  // E,I,J,K,L,M,N are formula columns — skip them
+  const ws2 = wb.getWorksheet('سجل الشكاوى');
   complaints.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
     const row = i + 4;
-    setCell(ws2, `A${row}`, i + 1);
-    if (r.date) setCell(ws2, `B${row}`, new Date(r.date));
-    ws2[`B${row}`] = ws2[`B${row}`] || {};
-    if (r.date) { ws2[`B${row}`].v = new Date(r.date); ws2[`B${row}`].t = 'd'; ws2[`B${row}`].z = 'mm/dd/yyyy'; }
-    setCell(ws2, `C${row}`, r.category || r.type || '');
-    setCell(ws2, `D${row}`, r.summary || '');
-    if (r.resolve_date) { ws2[`F${row}`] = { v: new Date(r.resolve_date), t: 'd', z: 'mm/dd/yyyy' }; }
-    setCell(ws2, `G${row}`, r.feedback || '');
-    if (r.feedback_date) { ws2[`H${row}`] = { v: new Date(r.feedback_date), t: 'd', z: 'mm/dd/yyyy' }; }
+    sc(ws2, `A${row}`, i + 1);
+    sc(ws2, `B${row}`, r.date ? new Date(r.date) : null);
+    sc(ws2, `C${row}`, r.category || r.type || null);
+    sc(ws2, `D${row}`, r.summary || null);
+    sc(ws2, `F${row}`, r.resolve_date ? new Date(r.resolve_date) : null);
+    sc(ws2, `G${row}`, r.feedback || null);
+    sc(ws2, `H${row}`, r.feedback_date ? new Date(r.feedback_date) : null);
   });
 
   // ── SHEET 3: تدريب ──
-  // Quarter data: Jan=col C, Apr=col F, Jul=col I, Oct=col L
-  // Rows 4–9 = 6 training items
-  const ws3 = wb.Sheets['تدريب'];
-  const QUARTER_COLS = {0: 'C', 3: 'F', 6: 'I', 9: 'L'}; // monthIdx → col
+  // Quarter cols: Jan=C, Apr=F, Jul=I, Oct=L — rows 4–9
+  const ws3 = wb.getWorksheet('تدريب');
+  const qCols = ['C', 'F', 'I', 'L'];
   TRAINING_ITEMS.forEach((item, ti) => {
     const row = ti + 4;
     const savedItem = training?.items?.find(r => r.id === item.id);
     if (!savedItem) return;
-    // quarters array: [Q1_val, Q2_val, Q3_val, Q4_val]
     if (savedItem.quarters) {
-      const qCols = ['C','F','I','L'];
       savedItem.quarters.forEach((val, qi) => {
-        if (val !== '' && val !== undefined) setCell(ws3, `${qCols[qi]}${row}`, Number(val));
+        sc(ws3, `${qCols[qi]}${row}`, (val !== '' && val !== undefined) ? Number(val) : null);
       });
     } else if (savedItem.months) {
-      // old format — map months to quarters
-      Object.entries(QUARTER_COLS).forEach(([mIdx, col]) => {
-        const val = savedItem.months[Number(mIdx)];
-        if (val !== '' && val !== undefined) setCell(ws3, `${col}${row}`, Number(val));
+      // legacy monthly format — map to quarter columns
+      [0, 3, 6, 9].forEach((mIdx, qi) => {
+        const val = savedItem.months[mIdx];
+        sc(ws3, `${qCols[qi]}${row}`, (val !== '' && val !== undefined) ? Number(val) : null);
       });
     }
   });
 
   // ── SHEET 4: الإفاقة القلبية ──
-  // Headers at row 4, data starts row 5
-  // Cols: A=م, B=اسم, C=رقم طبي, D=تاريخ, E=مكان, F=وقت Code Blue, G=بداية CPR,
-  //       H=وصول الفريق, J=دورات, K=انتهاء, M=نتيجة, N=توثيق
-  // I=زمن استجابة (formula), L=مدة انعاش (formula), O=شهر (formula)
-  const ws4 = wb.Sheets['الإفاقة القلبية'];
+  // Headers row 4, data from row 5
+  // A=م B=اسم C=رقم D=تاريخ E=مكان F=وقت Code Blue G=بداية CPR
+  // H=وصول الفريق J=دورات K=انتهاء M=نتيجة N=توثيق
+  // I=زمن استجابة (formula) L=مدة إنعاش (formula) O=شهر (formula)
+  const ws4 = wb.getWorksheet('الإفاقة القلبية');
   cpr.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
     const row = i + 5;
-    setCell(ws4, `A${row}`, i + 1);
-    setCell(ws4, `B${row}`, r.name || '');
-    setCell(ws4, `C${row}`, r.medid || '');
-    if (r.date) ws4[`D${row}`] = { v: new Date(r.date), t: 'd', z: 'mm/dd/yyyy' };
-    setCell(ws4, `E${row}`, r.location || '');
-    // Times as text (HH:MM)
-    if (r.code_time) setCell(ws4, `F${row}`, r.code_time);
-    if (r.start_time) setCell(ws4, `G${row}`, r.start_time);
-    if (r.team_time) setCell(ws4, `H${row}`, r.team_time);
-    // I = response time formula in template — write value directly
-    if (r.response_min !== undefined) { ws4[`I${row}`] = { v: r.response_min, t: 'n' }; }
-    if (r.cycles) setCell(ws4, `J${row}`, Number(r.cycles));
-    if (r.end_time) setCell(ws4, `K${row}`, r.end_time);
-    setCell(ws4, `M${row}`, r.outcome || '');
-    setCell(ws4, `N${row}`, r.doc_complete || '');
-    // O = month formula — write month label
-    if (r.month) { ws4[`O${row}`] = { v: r.month, t: 's' }; }
+    sc(ws4, `A${row}`, i + 1);
+    sc(ws4, `B${row}`, r.name || null);
+    sc(ws4, `C${row}`, r.medid || null);
+    sc(ws4, `D${row}`, r.date ? new Date(r.date) : null);
+    sc(ws4, `E${row}`, r.location || null);
+    // Times: store as text HH:MM — template formula I=H-F computes minutes
+    sc(ws4, `F${row}`, r.code_time  || null);
+    sc(ws4, `G${row}`, r.start_time || null);
+    sc(ws4, `H${row}`, r.team_time  || null);
+    // Write response_min directly into I (override formula result)
+    sc(ws4, `I${row}`, r.response_min != null ? Number(r.response_min) : null);
+    sc(ws4, `J${row}`, r.cycles ? Number(r.cycles) : null);
+    sc(ws4, `K${row}`, r.end_time || null);
+    sc(ws4, `M${row}`, r.outcome || null);
+    sc(ws4, `N${row}`, r.doc_complete || null);
+    sc(ws4, `O${row}`, r.month || null);
   });
 
   // ── SHEET 5: الطوارئ والاستقبال ──
-  // Row 3 = header, data from row 4
-  // Cols: A=م, C=اسم, D=رقم طبي, E=تاريخ, F=دخول, G=خروج
-  // H=وقت مستغرق (formula), J=شهر (formula), K=إعادة دخول, L=اجمالي مرضى
-  const ws5 = wb.Sheets['الطوارئ والاستقبال'];
+  // Headers row 3, data from row 4
+  // A=م C=اسم D=رقم E=تاريخ F=دخول G=خروج H=وقت(formula) J=شهر K=إعادة دخول
+  const ws5 = wb.getWorksheet('الطوارئ والاستقبال');
   er.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach((r, i) => {
     const row = i + 4;
-    setCell(ws5, `A${row}`, i + 1);
-    setCell(ws5, `C${row}`, r.name || '');
-    setCell(ws5, `D${row}`, r.medid || '');
-    if (r.date) ws5[`E${row}`] = { v: new Date(r.date), t: 'd', z: 'mm/dd/yyyy' };
-    if (r.in_time) setCell(ws5, `F${row}`, r.in_time);
-    if (r.out_time) setCell(ws5, `G${row}`, r.out_time);
-    if (r.duration_min !== undefined) ws5[`H${row}`] = { v: r.duration_min, t: 'n' };
-    if (r.month) ws5[`J${row}`] = { v: new Date(`${year || 2026}-${r.month.substring(0,2)}-01`), t: 'd', z: 'mmm-yyyy' };
-    setCell(ws5, `K${row}`, r.readmit ? 'نعم' : 'لا');
+    sc(ws5, `A${row}`, i + 1);
+    sc(ws5, `C${row}`, r.name || null);
+    sc(ws5, `D${row}`, r.medid || null);
+    sc(ws5, `E${row}`, r.date ? new Date(r.date) : null);
+    sc(ws5, `F${row}`, r.in_time  || null);
+    sc(ws5, `G${row}`, r.out_time || null);
+    sc(ws5, `H${row}`, r.duration_min != null ? Number(r.duration_min) : null);
+    sc(ws5, `K${row}`, r.readmit ? 'نعم' : 'لا');
   });
 
-  // Update workbook range references so SheetJS knows about new rows
-  function updateRange(ws, lastRow, lastCol) {
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
-    if (lastRow > range.e.r) range.e.r = lastRow;
-    if (lastCol > range.e.c) range.e.c = lastCol;
-    ws['!ref'] = XLSX.utils.encode_range(range);
-  }
-  if (complaints.length) updateRange(ws2, complaints.length + 3, 17);
-  if (cpr.length) updateRange(ws4, cpr.length + 4, 21);
-  if (er.length) updateRange(ws5, er.length + 3, 14);
-
-  const facName = facility?.name || 'PHC';
-  XLSX.writeFile(wb, `تقرير_${facName}_${year || new Date().getFullYear()}.xlsx`);
+  // Write and download
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `تقرير_${facility?.name || 'PHC'}_${year || new Date().getFullYear()}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
   toast('تم تصدير الملف ✅', 'success', 3000);
 }
 
