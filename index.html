@@ -1140,6 +1140,15 @@ html, body {
           <div class="stat-label">📊 معدل إعادة الدخول</div>
         </div>
       </div>
+      <!-- Monthly total patients card -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header">
+          <div class="card-icon" style="background:rgba(10,79,110,0.1)">📅</div>
+          <h2>إجمالي مرضى الطوارئ الشهري</h2>
+        </div>
+        <div id="erMonthlyGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+        <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="saveErMonthly()">💾 حفظ الإجماليات الشهرية</button>
+      </div>
       <div class="card">
         <div class="card-header">
           <div class="card-icon" style="background:rgba(34,197,94,0.1)">🚨</div>
@@ -1562,7 +1571,7 @@ html, body {
 // ===== DATABASE =====
 let db;
 const DB_NAME = 'PHC_DB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const MONTHS_EN = ['Jan-26','Feb-26','Mar-26','Apr-26','May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26'];
@@ -1733,6 +1742,7 @@ function openDB() {
       if (!db.objectStoreNames.contains('cpr')) db.createObjectStore('cpr', {keyPath:'id', autoIncrement:true});
       if (!db.objectStoreNames.contains('drills')) db.createObjectStore('drills', {keyPath:'id', autoIncrement:true});
       if (!db.objectStoreNames.contains('er')) db.createObjectStore('er', {keyPath:'id', autoIncrement:true});
+      if (!db.objectStoreNames.contains('er_monthly')) db.createObjectStore('er_monthly', {keyPath:'id'});
     };
     req.onsuccess = (e) => resolve(e.target.result);
     req.onerror = () => reject(req.error);
@@ -1809,7 +1819,9 @@ async function loadAll() {
   await loadTraining();
   await renderComplaints();
   await renderCprList();
+  await renderDrillList();
   await renderErList();
+  await loadErMonthly();
   await renderIndicators();
   updateHomeStats();
 }
@@ -1853,6 +1865,8 @@ function showPage(name) {
   document.getElementById('nav_subtitle').textContent = sub;
   // Rebuild training UI with current active quarter every time page is opened
   if (name === 'training') loadTraining();
+  if (name === 'er') loadErMonthly();
+  if (name === 'cpr') renderDrillList();
 }
 
 // ===== MODAL =====
@@ -2577,6 +2591,33 @@ async function renderErList() {
     </div>`).join('');
 }
 
+// ===== ER MONTHLY TOTALS =====
+async function loadErMonthly() {
+  const year = localStorage.getItem('report_year') || new Date().getFullYear().toString();
+  const saved = await dbGet('er_monthly', `er_monthly_${year}`);
+  const vals = saved?.months || Array(12).fill('');
+  const grid = document.getElementById('erMonthlyGrid');
+  if (!grid) return;
+  grid.innerHTML = MONTHS_AR.map((m, i) => `
+    <div>
+      <label class="field-label" style="font-size:11px">${m}</label>
+      <input class="field-input" id="er_monthly_${i}" type="number" min="0"
+        placeholder="0" value="${vals[i] !== '' && vals[i] !== null && vals[i] !== undefined ? vals[i] : ''}"
+        style="font-size:14px;font-weight:700;text-align:center">
+    </div>`).join('');
+}
+
+async function saveErMonthly() {
+  const year = localStorage.getItem('report_year') || new Date().getFullYear().toString();
+  const months = MONTHS_AR.map((_, i) => {
+    const el = document.getElementById(`er_monthly_${i}`);
+    const v = el ? el.value.trim() : '';
+    return v !== '' ? Number(v) : '';
+  });
+  await dbPut('er_monthly', { id: `er_monthly_${year}`, months });
+  toast('تم حفظ الإجماليات الشهرية ✅', 'success');
+}
+
 // ===== INDICATORS =====
 async function renderIndicators() {
   const [complaints, cpr, er, training, clinics] = await Promise.all([
@@ -2931,6 +2972,66 @@ function _dateSerial(dateStr) {
   return Math.round((d - epoch) / 86400000);
 }
 
+// ── Patch a date cell — like _patchCell but ALWAYS preserves the date-format
+//    style (s= attr) from the nearest existing cell in the same column so
+//    Excel shows "dd/mm/yyyy" instead of a raw number.
+//    dateStyle: the s= value to use when no existing cell can be found.
+function _patchCellDate(sheet, cellRef, serialVal, dateStyle) {
+  if (serialVal === null || serialVal === undefined) return _patchCell(sheet, cellRef, null);
+
+  const col = cellRef.replace(/\d+$/, '');
+  const rowNum = cellRef.match(/\d+$/)[0];
+
+  // Try to find the s= style from any existing <c r="Bn"> cell in this column
+  let styleAttr = dateStyle ? ` s="${dateStyle}"` : '';
+  const colEsc = col.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const styleRx = new RegExp('<c r="' + colEsc + '\\d+"(?=[\\s"/])([^>]*)>');
+  const sm = styleRx.exec(sheet);
+  if (sm) {
+    const sMatch = /\bs="(\d+)"/.exec(sm[1]);
+    if (sMatch) styleAttr = ` s="${sMatch[1]}"`;
+  }
+
+  // Build the replacement cell XML directly
+  const cellXml = `<c r="${cellRef}"${styleAttr}><v>${serialVal}</v></c>`;
+
+  // Try replacing existing self-closing cell
+  const escaped = cellRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let patched = false;
+  sheet = sheet.replace(
+    new RegExp('<c r="' + escaped + '"(?=[\\s"/])[^/]*/>'),
+    () => { patched = true; return cellXml; }
+  );
+  if (!patched) {
+    sheet = sheet.replace(
+      new RegExp('<c r="' + escaped + '"(?=[\\s"/])[^>/]*>[\\s\\S]*?<\\/c>'),
+      () => { patched = true; return cellXml; }
+    );
+  }
+
+  // Insert into row if cell didn't exist
+  if (!patched) {
+    const colIdx = c => c.split('').reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0);
+    sheet = sheet.replace(
+      new RegExp('(<row r="' + rowNum + '"(?=[\\s"])[^>]*>)([\\s\\S]*?)(</row>)'),
+      (whole, open, inner, close) => {
+        const insertBefore = new RegExp('<c r="([A-Z]+)' + rowNum + '"(?=[\\s"/])', 'g');
+        let inserted = false;
+        const newInner = inner.replace(insertBefore, (m2, existCol) => {
+          if (!inserted && colIdx(existCol) > colIdx(col)) {
+            inserted = true;
+            return cellXml + m2;
+          }
+          return m2;
+        });
+        if (!inserted) return open + newInner + cellXml + close;
+        return open + newInner + close;
+      }
+    );
+  }
+  return sheet;
+}
+
 // ── Excel time fraction from HH:MM string ──
 function _timeSerial(timeStr) {
   if (!timeStr) return null;
@@ -2961,6 +3062,8 @@ async function exportExcel() {
       dbGetAll('er'),
       dbGetAll('drills')
     ]);
+    const erMonthlyKey = `er_monthly_${year}`;
+    const erMonthlyData = await dbGet('er_monthly', erMonthlyKey);
 
     toast('⏳ جاري كتابة البيانات...', '', 0);
     await new Promise(r => setTimeout(r, 30)); // yield to let toast render
@@ -3063,13 +3166,13 @@ async function exportExcel() {
       complaints.sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((r, i) => {
         const row = 4 + i;
         s2 = pc(s2, `A${row}`, i + 1);
-        s2 = pc(s2, `B${row}`, _dateSerial(r.date));
+        s2 = _patchCellDate(s2, `B${row}`, _dateSerial(r.date));
         s2 = pc(s2, `C${row}`, r.type     || null);
         s2 = pc(s2, `D${row}`, r.summary  || null);
         s2 = pc(s2, `E${row}`, r.resolution || null);
-        s2 = pc(s2, `F${row}`, _dateSerial(r.resolve_date));
+        s2 = _patchCellDate(s2, `F${row}`, _dateSerial(r.resolve_date));
         s2 = pc(s2, `G${row}`, r.feedback || null);
-        s2 = pc(s2, `H${row}`, _dateSerial(r.feedback_date));
+        s2 = _patchCellDate(s2, `H${row}`, _dateSerial(r.feedback_date));
         s2 = pc(s2, `I${row}`, r.immediate  || 'لا');
         s2 = pc(s2, `J${row}`, r.hr72       || 'لا');
       });
@@ -3120,7 +3223,7 @@ async function exportExcel() {
         s4 = pc(s4, `A${row}`, i + 1);
         s4 = pc(s4, `B${row}`, r.name   || null);
         s4 = pc(s4, `C${row}`, r.medid  || null);
-        s4 = pc(s4, `D${row}`, _dateSerial(r.date));
+        s4 = _patchCellDate(s4, `D${row}`, _dateSerial(r.date));
         s4 = pc(s4, `E${row}`, r.location   || null);
         s4 = pc(s4, `F${row}`, _timeSerial(r.code_time));
         s4 = pc(s4, `G${row}`, _timeSerial(r.start_time));
@@ -3206,6 +3309,17 @@ async function exportExcel() {
         s5 = pc(s5, `K${row}`, r.readmit ? 1 : 0);
       });
       putSheet('الطوارئ والاستقبال', s5);
+
+      // ── Monthly ER totals — written to L4:L15 (Jan=L4 … Dec=L15)
+      // Column L "إجمالي مرضى الطوارئ" is a pre-existing column in the template.
+      if (erMonthlyData?.months) {
+        s5 = getSheet('الطوارئ والاستقبال');
+        erMonthlyData.months.forEach((v, i) => {
+          const num = v !== '' && v !== null && v !== undefined ? Number(v) : null;
+          s5 = pc(s5, `L${4 + i}`, num);
+        });
+        putSheet('الطوارئ والاستقبال', s5);
+      }
     }
 
     // ── Force recalculation on open ──
