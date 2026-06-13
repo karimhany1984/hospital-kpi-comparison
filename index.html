@@ -3251,10 +3251,20 @@ async function exportExcel() {
     // J=عدد الدورات  K=وقت الانتهاء (time serial)
     // L=مدة الانعاش — formula, don't overwrite
     // M=النتيجة  N=نموذج التوثيق  O=شهر حدوث الحدث
+    //
+    // CPR cases are written first starting at row 5. Drills
+    // (مناورة انعاش قلبى) are then appended as additional rows of
+    // the SAME table, directly after the last CPR case, using the
+    // same column layout — not in a separate area below the table.
+    // Drills have no medical ID, CPR cycles, CPR end time, outcome
+    // or documentation status, so C, J, K, M, N stay empty for those
+    // rows, and L (مدة الانعاش — depends on K) is left empty too
+    // instead of showing a negative duration.
     // ════════════════════════════════════════════════
     let s4 = getSheet('الإفاقة القلبية');
     if (s4) {
-      cpr.sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((r, i) => {
+      const sortedCpr = cpr.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      sortedCpr.forEach((r, i) => {
         const row = 5 + i;
         s4 = pc(s4, `A${row}`, i + 1);
         s4 = pc(s4, `B${row}`, r.name   || null);
@@ -3272,54 +3282,28 @@ async function exportExcel() {
         s4 = pc(s4, `N${row}`, r.doc_complete || null);
         s4 = pc(s4, `O${row}`, r.month        || null);
       });
-      putSheet('الإفاقة القلبية', s4);
 
-      // ────────────────────────────────────────────────────
-      // DRILLS (مناورة انعاش قلبى) — written below the CPR
-      // cases table.  The template table ends at row 204, so
-      // we use row 206 for the section header and 207+ for data.
-      // Columns: A=م  B=الاسم/المسؤول  C=التاريخ  D=مكان
-      //          E=وقت Code Blue  F=وقت بداية CPR
-      //          G=وقت وصول الفريق  H=زمن الاستجابة(د)
-      //          I=الشهر
-      // ────────────────────────────────────────────────────
-      if (drills && drills.length) {
-        s4 = getSheet('الإفاقة القلبية'); // re-read after putSheet above
-        const esc4 = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const nc4 = (ref, val) => {
-          if (val === null || val === undefined || val === '') return '';
-          if (typeof val === 'number') return `<c r="${ref}"><v>${val}</v></c>`;
-          return `<c r="${ref}" t="str"><v>${esc4(val)}</v></c>`;
-        };
-        const drillRowsXml = drills
-          .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
-          .map((r, i) => {
-            const row = 207 + i;
-            const cells = [
-              nc4(`A${row}`, i + 1),
-              nc4(`B${row}`, r.name || null),
-              nc4(`C${row}`, _dateSerial(r.date)),
-              nc4(`D${row}`, r.location || null),
-              nc4(`E${row}`, _timeSerial(r.code_time)),
-              nc4(`F${row}`, _timeSerial(r.start_time)),
-              nc4(`G${row}`, _timeSerial(r.team_time)),
-              nc4(`H${row}`, r.response_min != null ? Number(r.response_min) : null),
-              nc4(`I${row}`, r.month || null),
-            ].join('');
-            return cells ? `<row r="${row}">${cells}</row>` : null;
-          })
-          .filter(Boolean)
-          .join('');
-        if (drillRowsXml) {
-          // Handle both <sheetData/> (self-closing, empty) and <sheetData>...</sheetData>
-          if (s4.includes('</sheetData>')) {
-            s4 = s4.replace('</sheetData>', drillRowsXml + '</sheetData>');
-          } else {
-            s4 = s4.replace('<sheetData/>', `<sheetData>${drillRowsXml}</sheetData>`);
-          }
-        }
-        putSheet('الإفاقة القلبية', s4);
-      }
+      const sortedDrills = drills.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      sortedDrills.forEach((r, i) => {
+        const row = 5 + sortedCpr.length + i;
+        s4 = pc(s4, `A${row}`, sortedCpr.length + i + 1);
+        s4 = pc(s4, `B${row}`, r.name || null);
+        s4 = pc(s4, `C${row}`, null);
+        s4 = _patchCellDate(s4, `D${row}`, _dateSerial(r.date), _dsIdx);
+        s4 = pc(s4, `E${row}`, r.location || null);
+        s4 = pc(s4, `F${row}`, _timeSerial(r.code_time));
+        s4 = pc(s4, `G${row}`, _timeSerial(r.start_time));
+        s4 = pc(s4, `H${row}`, _timeSerial(r.team_time));
+        // I = formula — leave as-is
+        s4 = pc(s4, `J${row}`, null);
+        s4 = pc(s4, `K${row}`, null);
+        s4 = pc(s4, `L${row}`, null); // no CPR end time for drills -> leave empty
+        s4 = pc(s4, `M${row}`, null);
+        s4 = pc(s4, `N${row}`, null);
+        s4 = pc(s4, `O${row}`, r.month || null);
+      });
+
+      putSheet('الإفاقة القلبية', s4);
     }
 
     // ════════════════════════════════════════════════
