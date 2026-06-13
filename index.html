@@ -2907,7 +2907,7 @@ async function _loadTemplate() {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const r = await fetch('./PHC_Data_Collection_Sheet_final.xlsx', { signal: ctrl.signal });
+    const r = await fetch('./template.xlsx', { signal: ctrl.signal });
     clearTimeout(tid);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     _cachedTemplate = new Uint8Array(await r.arrayBuffer());
@@ -3260,10 +3260,10 @@ async function shareWhatsApp() {
 
 // ===== TEMPLATE DOWNLOAD =====
 function downloadTemplate() {
-  const url = 'PHC_Data_Collection_Sheet_final.xlsx';
+  const url = 'template.xlsx';
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'PHC_Data_Collection_Sheet_final.xlsx';
+  a.download = 'template.xlsx';
   a.click();
 }
 
